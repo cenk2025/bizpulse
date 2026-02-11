@@ -43,7 +43,7 @@ export default function SettingsPage() {
                 email: user.email,
                 role: 'Admin',
             })
-            // Try loading profile from DB
+            // Load all settings from DB
             const { data } = await supabase
                 .from('profiles')
                 .select('*')
@@ -55,9 +55,17 @@ export default function SettingsPage() {
                     fullName: data.full_name || p.fullName,
                     role: data.role || p.role,
                 }))
-                if (data.company_name) {
-                    setCompany((c) => ({ ...c, name: data.company_name }))
-                }
+                setCompany({
+                    name: data.company_name || '',
+                    industry: data.industry || '',
+                    currency: data.currency || 'USD',
+                    timezone: data.timezone || 'UTC',
+                })
+                setPrefs({
+                    emailNotifications: data.email_notifications ?? true,
+                    weeklyReport: data.weekly_report ?? true,
+                    darkMode: data.dark_mode ?? true,
+                })
             }
         }
     }
@@ -74,6 +82,13 @@ export default function SettingsPage() {
                         full_name: profile.fullName,
                         company_name: company.name,
                         role: profile.role,
+                        industry: company.industry,
+                        currency: company.currency,
+                        timezone: company.timezone,
+                        email_notifications: prefs.emailNotifications,
+                        weekly_report: prefs.weeklyReport,
+                        dark_mode: prefs.darkMode,
+                        updated_at: new Date().toISOString(),
                     })
                     .eq('id', user.id)
 

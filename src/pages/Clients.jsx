@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '../lib/supabase'
 import {
     Plus,
     Search,
@@ -14,21 +15,22 @@ import {
     Star,
     Edit3,
     Trash2,
+    Wifi,
+    WifiOff,
 } from 'lucide-react'
 
-const sampleClients = [
-    { id: 1, name: 'Acme Corp', email: 'billing@acme.com', phone: '+1 555-0101', company: 'Acme Corporation', location: 'New York, NY', status: 'active', totalSpent: 28500, invoices: 6, lastActivity: '2026-02-10', notes: 'Key enterprise client', starred: true },
-    { id: 2, name: 'Beta Industries', email: 'finance@beta.io', phone: '+1 555-0202', company: 'Beta Industries Ltd', location: 'San Francisco, CA', status: 'active', totalSpent: 15200, invoices: 4, lastActivity: '2026-02-08', notes: 'Monthly consulting', starred: false },
-    { id: 3, name: 'Sunrise Bakery', email: 'hello@sunrise.com', phone: '+1 555-0303', company: 'Sunrise Bakery LLC', location: 'Austin, TX', status: 'active', totalSpent: 4100, invoices: 2, lastActivity: '2026-02-06', notes: 'Small business client', starred: false },
-    { id: 4, name: 'Delta Co', email: 'ap@deltaco.com', phone: '+1 555-0404', company: 'Delta Company', location: 'Chicago, IL', status: 'active', totalSpent: 19750, invoices: 5, lastActivity: '2026-02-04', notes: '', starred: true },
-    { id: 5, name: 'Omega Ltd', email: 'pay@omega.co', phone: '+1 555-0505', company: 'Omega Limited', location: 'London, UK', status: 'inactive', totalSpent: 12000, invoices: 1, lastActivity: '2026-01-28', notes: 'International client, overdue invoice', starred: false },
-    { id: 6, name: 'Tech Solutions Inc', email: 'accounts@techsol.com', phone: '+1 555-0606', company: 'Tech Solutions', location: 'Seattle, WA', status: 'active', totalSpent: 8400, invoices: 3, lastActivity: '2026-01-20', notes: 'Analytics project', starred: false },
-    { id: 7, name: 'NovaCraft', email: 'finance@novacraft.io', phone: '+1 555-0707', company: 'NovaCraft Studios', location: 'Portland, OR', status: 'active', totalSpent: 5200, invoices: 2, lastActivity: '2026-01-15', notes: 'UI/UX client', starred: true },
-    { id: 8, name: 'Greenleaf Studios', email: 'billing@greenleaf.co', phone: '+1 555-0808', company: 'Greenleaf Studios', location: 'Denver, CO', status: 'inactive', totalSpent: 1800, invoices: 1, lastActivity: '2026-01-10', notes: 'Brand project pending follow-up', starred: false },
-]
+const currencySymbols = {
+    USD: '$', EUR: '€', GBP: '£', TRY: '₺', SEK: 'kr',
+}
+const currencyLocales = {
+    USD: 'en-US', EUR: 'de-DE', GBP: 'en-GB', TRY: 'tr-TR', SEK: 'sv-SE',
+}
 
-function formatCurrency(n) {
-    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0 })
+function formatCurrency(n, currency = 'USD') {
+    const symbol = currencySymbols[currency] || currency
+    const locale = currencyLocales[currency] || 'en-US'
+    if (currency === 'SEK') return n.toLocaleString(locale, { minimumFractionDigits: 0 }) + ' ' + symbol
+    return symbol + n.toLocaleString(locale, { minimumFractionDigits: 0 })
 }
 
 function getInitials(name) {
@@ -42,20 +44,79 @@ const avatarColors = [
 ]
 
 export default function ClientsPage() {
-    const [clients, setClients] = useState(sampleClients)
+    const [clients, setClients] = useState([])
+    const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState('')
     const [filterStatus, setFilterStatus] = useState('all')
     const [showModal, setShowModal] = useState(false)
     const [viewClient, setViewClient] = useState(null)
+    const [saving, setSaving] = useState(false)
+    const [defaultCurrency, setDefaultCurrency] = useState('USD')
+    const [realtimeConnected, setRealtimeConnected] = useState(false)
     const [newClient, setNewClient] = useState({
         name: '', email: '', phone: '', company: '', location: '', notes: '',
     })
 
+    const loadClients = useCallback(async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        // Also load invoice count per client
+        const { data, error } = await supabase
+            .from('clients')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+
+        if (!error && data) {
+            setClients(data.map(c => ({
+                ...c,
+                totalSpent: parseFloat(c.total_spent || 0),
+                lastActivity: c.updated_at ? new Date(c.updated_at).toISOString().split('T')[0] : '',
+            })))
+        }
+        setLoading(false)
+    }, [])
+
+    useEffect(() => {
+        async function init() {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('currency')
+                    .eq('id', user.id)
+                    .single()
+                if (data?.currency) setDefaultCurrency(data.currency)
+            }
+            await loadClients()
+        }
+        init()
+    }, [loadClients])
+
+    // Realtime subscription
+    useEffect(() => {
+        const channel = supabase
+            .channel('clients-realtime')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'clients',
+            }, () => {
+                loadClients()
+            })
+            .subscribe((status) => {
+                setRealtimeConnected(status === 'SUBSCRIBED')
+            })
+
+        return () => { supabase.removeChannel(channel) }
+    }, [loadClients])
+
     const filtered = clients.filter(c => {
         const q = searchQuery.toLowerCase()
         const matchesSearch = c.name.toLowerCase().includes(q) ||
-            c.email.toLowerCase().includes(q) ||
-            c.company.toLowerCase().includes(q)
+            (c.email || '').toLowerCase().includes(q) ||
+            (c.company || '').toLowerCase().includes(q)
         const matchesFilter = filterStatus === 'all' ||
             (filterStatus === 'starred' ? c.starred : c.status === filterStatus)
         return matchesSearch && matchesFilter
@@ -68,25 +129,61 @@ export default function ClientsPage() {
         totalRevenue: clients.reduce((s, c) => s + c.totalSpent, 0),
     }
 
-    function toggleStar(id, e) {
+    async function toggleStar(id, e) {
         e.stopPropagation()
+        const client = clients.find(c => c.id === id)
+        if (!client) return
+        await supabase.from('clients').update({ starred: !client.starred }).eq('id', id)
         setClients(clients.map(c => c.id === id ? { ...c, starred: !c.starred } : c))
     }
 
-    function handleCreate(e) {
+    async function handleCreate(e) {
         e.preventDefault()
-        const client = {
-            id: clients.length + 1,
-            ...newClient,
-            status: 'active',
-            totalSpent: 0,
-            invoices: 0,
-            lastActivity: new Date().toISOString().split('T')[0],
-            starred: false,
+        setSaving(true)
+        try {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+
+            const { error } = await supabase.from('clients').insert({
+                user_id: user.id,
+                name: newClient.name,
+                email: newClient.email,
+                phone: newClient.phone,
+                company: newClient.company,
+                location: newClient.location,
+                notes: newClient.notes,
+                status: 'active',
+            })
+
+            if (error) throw error
+
+            setNewClient({ name: '', email: '', phone: '', company: '', location: '', notes: '' })
+            setShowModal(false)
+            await loadClients()
+        } catch (err) {
+            console.error('Failed to create client:', err)
+            alert('Failed to create client.')
+        } finally {
+            setSaving(false)
         }
-        setClients([client, ...clients])
-        setNewClient({ name: '', email: '', phone: '', company: '', location: '', notes: '' })
-        setShowModal(false)
+    }
+
+    async function handleDelete(client) {
+        if (!confirm(`Delete client "${client.name}"?`)) return
+        await supabase.from('clients').delete().eq('id', client.id)
+        setViewClient(null)
+        await loadClients()
+    }
+
+    if (loading) {
+        return (
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                minHeight: '50vh', color: 'var(--text-muted)', fontSize: 15,
+            }}>
+                Loading clients...
+            </div>
+        )
     }
 
     return (
@@ -108,7 +205,7 @@ export default function ClientsPage() {
                     </div>
                     <div className="inv-stat">
                         <span className="inv-stat-label">Total Revenue</span>
-                        <span className="inv-stat-value" style={{ color: 'var(--accent-teal)' }}>{formatCurrency(stats.totalRevenue)}</span>
+                        <span className="inv-stat-value" style={{ color: 'var(--accent-teal)' }}>{formatCurrency(stats.totalRevenue, defaultCurrency)}</span>
                     </div>
                 </div>
 
@@ -158,18 +255,18 @@ export default function ClientsPage() {
                                 </button>
                             </div>
                             <h4 className="cl-name">{client.name}</h4>
-                            <p className="cl-company">{client.company}</p>
+                            <p className="cl-company">{client.company || '—'}</p>
                             <div className="cl-meta">
-                                <span><Mail style={{ width: 14, height: 14 }} /> {client.email}</span>
-                                <span><MapPin style={{ width: 14, height: 14 }} /> {client.location}</span>
+                                <span><Mail style={{ width: 14, height: 14 }} /> {client.email || '—'}</span>
+                                <span><MapPin style={{ width: 14, height: 14 }} /> {client.location || '—'}</span>
                             </div>
                             <div className="cl-card-footer">
                                 <div className="cl-card-stat">
-                                    <span className="cl-card-stat-value">{formatCurrency(client.totalSpent)}</span>
+                                    <span className="cl-card-stat-value">{formatCurrency(client.totalSpent, defaultCurrency)}</span>
                                     <span className="cl-card-stat-label">Revenue</span>
                                 </div>
                                 <div className="cl-card-stat">
-                                    <span className="cl-card-stat-value">{client.invoices}</span>
+                                    <span className="cl-card-stat-value">—</span>
                                     <span className="cl-card-stat-label">Invoices</span>
                                 </div>
                                 <span className={`cl-status-dot ${client.status}`}>{client.status}</span>
@@ -177,7 +274,9 @@ export default function ClientsPage() {
                         </div>
                     ))}
                     {filtered.length === 0 && (
-                        <div className="cl-empty">No clients found</div>
+                        <div className="cl-empty">
+                            {clients.length === 0 ? 'No clients yet. Add one manually or via n8n!' : 'No clients found'}
+                        </div>
                     )}
                 </div>
             </div>
@@ -192,12 +291,12 @@ export default function ClientsPage() {
                         </div>
                         <div className="cl-detail">
                             <div className="cl-detail-top">
-                                <div className="cl-avatar cl-avatar-lg" style={{ background: avatarColors[viewClient.id % avatarColors.length] }}>
+                                <div className="cl-avatar cl-avatar-lg" style={{ background: avatarColors[viewClient.id?.charCodeAt?.(0) % avatarColors.length || 0] }}>
                                     {getInitials(viewClient.name)}
                                 </div>
                                 <div>
                                     <h3 className="cl-detail-name">{viewClient.name}</h3>
-                                    <p className="cl-detail-company">{viewClient.company}</p>
+                                    <p className="cl-detail-company">{viewClient.company || '—'}</p>
                                     <span className={`cl-status-dot ${viewClient.status}`}>{viewClient.status}</span>
                                 </div>
                             </div>
@@ -205,15 +304,15 @@ export default function ClientsPage() {
                             <div className="cl-detail-info">
                                 <div className="cl-detail-info-item">
                                     <Mail style={{ width: 16, height: 16 }} />
-                                    <span>{viewClient.email}</span>
+                                    <span>{viewClient.email || '—'}</span>
                                 </div>
                                 <div className="cl-detail-info-item">
                                     <Phone style={{ width: 16, height: 16 }} />
-                                    <span>{viewClient.phone}</span>
+                                    <span>{viewClient.phone || '—'}</span>
                                 </div>
                                 <div className="cl-detail-info-item">
                                     <MapPin style={{ width: 16, height: 16 }} />
-                                    <span>{viewClient.location}</span>
+                                    <span>{viewClient.location || '—'}</span>
                                 </div>
                             </div>
 
@@ -221,21 +320,14 @@ export default function ClientsPage() {
                                 <div className="cl-detail-stat-box">
                                     <DollarSign style={{ width: 18, height: 18, color: 'var(--accent-teal)' }} />
                                     <div>
-                                        <div className="cl-detail-stat-value">{formatCurrency(viewClient.totalSpent)}</div>
+                                        <div className="cl-detail-stat-value">{formatCurrency(viewClient.totalSpent, defaultCurrency)}</div>
                                         <div className="cl-detail-stat-label">Total Revenue</div>
-                                    </div>
-                                </div>
-                                <div className="cl-detail-stat-box">
-                                    <FileText style={{ width: 18, height: 18, color: 'var(--accent-blue)' }} />
-                                    <div>
-                                        <div className="cl-detail-stat-value">{viewClient.invoices}</div>
-                                        <div className="cl-detail-stat-label">Invoices</div>
                                     </div>
                                 </div>
                                 <div className="cl-detail-stat-box">
                                     <CalendarDays style={{ width: 18, height: 18, color: 'var(--accent-purple)' }} />
                                     <div>
-                                        <div className="cl-detail-stat-value">{viewClient.lastActivity}</div>
+                                        <div className="cl-detail-stat-value">{viewClient.lastActivity || '—'}</div>
                                         <div className="cl-detail-stat-label">Last Activity</div>
                                     </div>
                                 </div>
@@ -249,8 +341,10 @@ export default function ClientsPage() {
                             )}
                         </div>
                         <div className="modal-actions">
+                            <button className="btn btn-ghost" style={{ color: 'var(--accent-rose)' }} onClick={() => handleDelete(viewClient)}>
+                                <Trash2 style={{ width: 16, height: 16 }} /> Delete
+                            </button>
                             <button className="btn btn-ghost" onClick={() => setViewClient(null)}>Close</button>
-                            <button className="btn btn-primary"><Edit3 style={{ width: 16, height: 16 }} /> Edit Client</button>
                         </div>
                     </div>
                 </div>
@@ -301,7 +395,9 @@ export default function ClientsPage() {
                             </div>
                             <div className="modal-actions">
                                 <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)}>Cancel</button>
-                                <button type="submit" className="btn btn-primary">Add Client</button>
+                                <button type="submit" className="btn btn-primary" disabled={saving}>
+                                    {saving ? 'Adding...' : 'Add Client'}
+                                </button>
                             </div>
                         </form>
                     </div>

@@ -9,6 +9,14 @@ import {
     Save,
     CheckCircle,
     Loader2,
+    Zap,
+    Key,
+    Copy,
+    Trash2,
+    Plus,
+    ExternalLink,
+    Eye,
+    EyeOff,
 } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -31,8 +39,17 @@ export default function SettingsPage() {
         darkMode: true,
     })
 
+    // API Keys state
+    const [apiKeys, setApiKeys] = useState([])
+    const [newKeyLabel, setNewKeyLabel] = useState('')
+    const [generatingKey, setGeneratingKey] = useState(false)
+    const [newlyCreatedKey, setNewlyCreatedKey] = useState(null)
+    const [showKey, setShowKey] = useState(false)
+    const [copied, setCopied] = useState('')
+
     useEffect(() => {
         loadProfile()
+        loadApiKeys()
     }, [])
 
     async function loadProfile() {
@@ -43,7 +60,6 @@ export default function SettingsPage() {
                 email: user.email,
                 role: 'Admin',
             })
-            // Load all settings from DB
             const { data } = await supabase
                 .from('profiles')
                 .select('*')
@@ -69,6 +85,59 @@ export default function SettingsPage() {
             }
         }
     }
+
+    async function loadApiKeys() {
+        const { data, error } = await supabase
+            .from('api_keys')
+            .select('id, key_prefix, label, permissions, is_active, last_used_at, created_at')
+            .order('created_at', { ascending: false })
+
+        if (!error && data) {
+            setApiKeys(data)
+        }
+    }
+
+    async function handleGenerateKey() {
+        if (!newKeyLabel.trim()) return
+        setGeneratingKey(true)
+        try {
+            const { data, error } = await supabase.rpc('generate_api_key', {
+                p_label: newKeyLabel.trim(),
+            })
+            if (error) throw error
+            if (data?.success) {
+                setNewlyCreatedKey(data.api_key)
+                setShowKey(true)
+                setNewKeyLabel('')
+                await loadApiKeys()
+            }
+        } catch (err) {
+            console.error('Failed to generate API key:', err)
+            alert('Failed to generate API key. Make sure the database migration has been run.')
+        } finally {
+            setGeneratingKey(false)
+        }
+    }
+
+    async function handleRevokeKey(keyId) {
+        if (!confirm('Revoke this API key? Any n8n workflows using it will stop working.')) return
+        try {
+            const { error } = await supabase.rpc('revoke_api_key', { p_key_id: keyId })
+            if (error) throw error
+            await loadApiKeys()
+        } catch (err) {
+            console.error('Failed to revoke key:', err)
+        }
+    }
+
+    function copyToClipboard(text, label) {
+        navigator.clipboard.writeText(text)
+        setCopied(label)
+        setTimeout(() => setCopied(''), 2000)
+    }
+
+    const supabaseUrl = 'https://psjmhocozywyhyypurok.supabase.co'
+    const webhookUrl = `${supabaseUrl}/rest/v1/rpc/api_create_invoice`
 
     async function handleSave() {
         setLoading(true)
@@ -287,6 +356,191 @@ export default function SettingsPage() {
                         <input type="password" placeholder="Confirm new password" />
                     </div>
                 </div>
+            </div>
+
+            {/* API & Integrations Section */}
+            <div className="settings-section fade-in-up">
+                <div className="settings-section-header">
+                    <div className="settings-section-icon" style={{ background: 'rgba(168,85,247,0.15)', color: '#a855f7' }}>
+                        <Zap />
+                    </div>
+                    <div>
+                        <h3 className="settings-section-title">API & Integrations</h3>
+                        <p className="settings-section-desc">Connect n8n and external services</p>
+                    </div>
+                </div>
+
+                {/* Webhook URLs */}
+                <div style={{ marginBottom: 24 }}>
+                    <h4 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-heading)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        n8n Endpoint URLs
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {[
+                            { label: 'Create Invoice', url: `${supabaseUrl}/rest/v1/rpc/api_create_invoice` },
+                            { label: 'List Invoices', url: `${supabaseUrl}/rest/v1/rpc/api_list_invoices` },
+                            { label: 'Update Status', url: `${supabaseUrl}/rest/v1/rpc/api_update_invoice_status` },
+                            { label: 'Create Client', url: `${supabaseUrl}/rest/v1/rpc/api_create_client` },
+                            { label: 'List Clients', url: `${supabaseUrl}/rest/v1/rpc/api_list_clients` },
+                            { label: 'Webhook', url: `${supabaseUrl}/rest/v1/rpc/api_webhook` },
+                        ].map(ep => (
+                            <div key={ep.label} style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                background: 'var(--bg-primary)', borderRadius: 8, padding: '8px 12px',
+                                border: '1px solid var(--border-color)',
+                            }}>
+                                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-purple)', minWidth: 100 }}>
+                                    {ep.label}
+                                </span>
+                                <code style={{
+                                    flex: 1, fontSize: 11, color: 'var(--text-muted)',
+                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                }}>
+                                    {ep.url}
+                                </code>
+                                <button
+                                    onClick={() => copyToClipboard(ep.url, ep.label)}
+                                    style={{
+                                        background: 'none', border: 'none', cursor: 'pointer',
+                                        color: copied === ep.label ? 'var(--accent-green)' : 'var(--text-muted)',
+                                        padding: 4, display: 'flex',
+                                    }}
+                                >
+                                    {copied === ep.label ? <CheckCircle style={{ width: 14, height: 14 }} /> : <Copy style={{ width: 14, height: 14 }} />}
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+                        Use POST method with <code style={{ color: 'var(--accent-teal)' }}>Content-Type: application/json</code> and
+                        {' '}<code style={{ color: 'var(--accent-teal)' }}>apikey: {'<your-supabase-anon-key>'}</code> header.
+                        Pass your API key as <code style={{ color: 'var(--accent-teal)' }}>p_api_key</code> in the request body.
+                    </p>
+                </div>
+
+                {/* Generate New Key */}
+                <div style={{ marginBottom: 20 }}>
+                    <h4 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-heading)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        API Keys
+                    </h4>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                        <input
+                            type="text"
+                            placeholder="Key label (e.g. n8n-production)"
+                            value={newKeyLabel}
+                            onChange={(e) => setNewKeyLabel(e.target.value)}
+                            style={{
+                                flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 13,
+                                background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
+                                color: 'var(--text-heading)',
+                            }}
+                        />
+                        <button
+                            onClick={handleGenerateKey}
+                            disabled={generatingKey || !newKeyLabel.trim()}
+                            className="btn btn-primary"
+                            style={{ fontSize: 13, padding: '8px 16px' }}
+                        >
+                            {generatingKey ? <Loader2 className="spin" style={{ width: 14, height: 14 }} /> : <Key style={{ width: 14, height: 14 }} />}
+                            Generate Key
+                        </button>
+                    </div>
+
+                    {/* Newly created key banner */}
+                    {newlyCreatedKey && (
+                        <div style={{
+                            background: 'rgba(0,212,170,0.08)', border: '1px solid rgba(0,212,170,0.3)',
+                            borderRadius: 10, padding: '14px 16px', marginBottom: 16,
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                <CheckCircle style={{ width: 14, height: 14, color: 'var(--accent-green)' }} />
+                                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent-green)' }}>
+                                    API Key Generated — Save it now!
+                                </span>
+                            </div>
+                            <div style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                background: 'var(--bg-primary)', borderRadius: 6, padding: '8px 12px',
+                            }}>
+                                <code style={{
+                                    flex: 1, fontSize: 12, color: 'var(--text-heading)',
+                                    fontFamily: 'monospace',
+                                    letterSpacing: showKey ? 0 : 2,
+                                }}>
+                                    {showKey ? newlyCreatedKey : '••••••••••••••••••••••••••••••••'}
+                                </code>
+                                <button
+                                    onClick={() => setShowKey(!showKey)}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, display: 'flex' }}
+                                >
+                                    {showKey ? <EyeOff style={{ width: 14, height: 14 }} /> : <Eye style={{ width: 14, height: 14 }} />}
+                                </button>
+                                <button
+                                    onClick={() => copyToClipboard(newlyCreatedKey, 'apikey')}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied === 'apikey' ? 'var(--accent-green)' : 'var(--text-muted)', padding: 4, display: 'flex' }}
+                                >
+                                    {copied === 'apikey' ? <CheckCircle style={{ width: 14, height: 14 }} /> : <Copy style={{ width: 14, height: 14 }} />}
+                                </button>
+                            </div>
+                            <p style={{ fontSize: 11, color: 'var(--accent-amber)', marginTop: 8 }}>
+                                ⚠ This key will not be shown again. Copy and store it securely.
+                            </p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Active Keys List */}
+                {apiKeys.length > 0 && (
+                    <div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {apiKeys.map(key => (
+                                <div key={key.id} style={{
+                                    display: 'flex', alignItems: 'center', gap: 12,
+                                    background: 'var(--bg-primary)', borderRadius: 8, padding: '10px 14px',
+                                    border: '1px solid var(--border-color)',
+                                }}>
+                                    <Key style={{ width: 14, height: 14, color: 'var(--accent-purple)' }} />
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-heading)' }}>
+                                            {key.label}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                            <code>{key.key_prefix}</code>
+                                            {' · '}
+                                            Created {new Date(key.created_at).toLocaleDateString()}
+                                            {key.last_used_at && (
+                                                <> · Last used {new Date(key.last_used_at).toLocaleDateString()}</>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <span style={{
+                                        fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 8,
+                                        color: key.is_active ? 'var(--accent-green)' : 'var(--text-muted)',
+                                        background: key.is_active ? 'var(--accent-green-dim)' : 'rgba(100,116,139,0.1)',
+                                    }}>
+                                        {key.is_active ? 'Active' : 'Revoked'}
+                                    </span>
+                                    <button
+                                        onClick={() => handleRevokeKey(key.id)}
+                                        style={{
+                                            background: 'none', border: 'none', cursor: 'pointer',
+                                            color: 'var(--accent-rose)', padding: 4, display: 'flex',
+                                        }}
+                                        title="Revoke key"
+                                    >
+                                        <Trash2 style={{ width: 14, height: 14 }} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {apiKeys.length === 0 && !newlyCreatedKey && (
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '16px 0' }}>
+                        No API keys yet. Generate one to start using n8n integration.
+                    </p>
+                )}
             </div>
 
             {/* Save bar */}

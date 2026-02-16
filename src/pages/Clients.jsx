@@ -88,6 +88,43 @@ export default function ClientsPage() {
                     .eq('id', user.id)
                     .single()
                 if (data?.currency) setDefaultCurrency(data.currency)
+
+                // Back-fill: sync clients from existing invoices
+                const { data: invoices } = await supabase
+                    .from('invoices')
+                    .select('client_name, client_email')
+                    .eq('user_id', user.id)
+
+                if (invoices && invoices.length > 0) {
+                    const { data: existingClients } = await supabase
+                        .from('clients')
+                        .select('name')
+                        .eq('user_id', user.id)
+
+                    const existingNames = new Set(
+                        (existingClients || []).map(c => c.name?.toLowerCase())
+                    )
+
+                    // De-duplicate invoice client names
+                    const seen = new Set()
+                    const newClients = []
+                    for (const inv of invoices) {
+                        if (!inv.client_name) continue
+                        const key = inv.client_name.toLowerCase()
+                        if (existingNames.has(key) || seen.has(key)) continue
+                        seen.add(key)
+                        newClients.push({
+                            user_id: user.id,
+                            name: inv.client_name,
+                            email: inv.client_email || null,
+                            status: 'active',
+                        })
+                    }
+
+                    if (newClients.length > 0) {
+                        await supabase.from('clients').insert(newClients)
+                    }
+                }
             }
             await loadClients()
         }

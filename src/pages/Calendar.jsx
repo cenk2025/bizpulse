@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { supabase } from '../lib/supabase'
 import {
     ChevronLeft,
     ChevronRight,
@@ -7,13 +8,15 @@ import {
     Clock,
     User,
     StickyNote,
+    FileText,
+    Euro,
 } from 'lucide-react'
 import { sampleAppointments } from '../data/sampleData'
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const WEEKDAYS = ['Ma', 'Ti', 'Ke', 'To', 'Pe', 'La', 'Su']
 const MONTH_NAMES = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu',
+    'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu',
 ]
 
 function getDaysInMonth(year, month) {
@@ -21,7 +24,9 @@ function getDaysInMonth(year, month) {
 }
 
 function getFirstDayOfMonth(year, month) {
-    return new Date(year, month, 1).getDay()
+    // Adjust for Monday start (0=Mon, 6=Sun)
+    const day = new Date(year, month, 1).getDay()
+    return day === 0 ? 6 : day - 1
 }
 
 function formatDateKey(year, month, day) {
@@ -30,28 +35,72 @@ function formatDateKey(year, month, day) {
     return `${year}-${m}-${d}`
 }
 
+function formatEUR(num) {
+    if (num == null || isNaN(num)) return '0,00 €'
+    return num.toLocaleString('fi-FI', { style: 'currency', currency: 'EUR' })
+}
+
 export default function Calendar() {
     const today = new Date()
     const [currentYear, setCurrentYear] = useState(today.getFullYear())
     const [currentMonth, setCurrentMonth] = useState(today.getMonth())
     const [selectedDate, setSelectedDate] = useState(formatDateKey(today.getFullYear(), today.getMonth(), today.getDate()))
     const [appointments, setAppointments] = useState(sampleAppointments)
+    const [invoiceEvents, setInvoiceEvents] = useState([])
     const [showModal, setShowModal] = useState(false)
     const [newAppt, setNewAppt] = useState({ title: '', time: '', client: '', notes: '' })
 
     const todayKey = formatDateKey(today.getFullYear(), today.getMonth(), today.getDate())
 
-    // Build appointment index
+    // Load invoices from Supabase
+    const loadInvoices = useCallback(async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const { data, error } = await supabase
+            .from('invoices')
+            .select('*')
+            .eq('user_id', user.id)
+
+        if (!error && data) {
+            const events = data
+                .filter(inv => inv.due_date)
+                .map(inv => ({
+                    id: `inv-${inv.id}`,
+                    date: inv.due_date,
+                    time: '',
+                    title: `📄 ${inv.invoice_number} — ${inv.client_name || 'Tuntematon'}`,
+                    client: inv.client_name || '',
+                    notes: `Summa: ${formatEUR(inv.total)} | Tila: ${inv.status || 'luonnos'}`,
+                    type: 'invoice',
+                    status: inv.status,
+                    total: inv.total,
+                    invoiceNumber: inv.invoice_number,
+                }))
+            setInvoiceEvents(events)
+        }
+    }, [])
+
+    useEffect(() => {
+        loadInvoices()
+    }, [loadInvoices])
+
+    // Combine sample appointments + invoice events
+    const allEvents = useMemo(() => {
+        return [...appointments, ...invoiceEvents]
+    }, [appointments, invoiceEvents])
+
+    // Build event index
     const apptIndex = useMemo(() => {
         const idx = {}
-        appointments.forEach((a) => {
+        allEvents.forEach((a) => {
             if (!idx[a.date]) idx[a.date] = []
             idx[a.date].push(a)
         })
         return idx
-    }, [appointments])
+    }, [allEvents])
 
-    // Calendar grid
+    // Calendar grid (Monday start)
     const calendarDays = useMemo(() => {
         const days = []
         const daysInMonth = getDaysInMonth(currentYear, currentMonth)
@@ -133,10 +182,10 @@ export default function Calendar() {
 
     const selectedAppts = apptIndex[selectedDate] || []
     const selectedDateObj = new Date(selectedDate + 'T00:00:00')
-    const selectedDateStr = selectedDateObj.toLocaleDateString('en-US', {
+    const selectedDateStr = selectedDateObj.toLocaleDateString('fi-FI', {
         weekday: 'long',
-        month: 'long',
         day: 'numeric',
+        month: 'long',
         year: 'numeric',
     })
 
@@ -148,12 +197,12 @@ export default function Calendar() {
                     <div className="cal-header">
                         <h2>{MONTH_NAMES[currentMonth]} {currentYear}</h2>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <button className="cal-today-btn" onClick={goToday}>Today</button>
+                            <button className="cal-today-btn" onClick={goToday}>Tänään</button>
                             <div className="cal-nav">
-                                <button className="cal-nav-btn" onClick={prevMonthNav} aria-label="Previous month">
+                                <button className="cal-nav-btn" onClick={prevMonthNav} aria-label="Edellinen kuukausi">
                                     <ChevronLeft />
                                 </button>
-                                <button className="cal-nav-btn" onClick={nextMonthNav} aria-label="Next month">
+                                <button className="cal-nav-btn" onClick={nextMonthNav} aria-label="Seuraava kuukausi">
                                     <ChevronRight />
                                 </button>
                             </div>
@@ -171,6 +220,8 @@ export default function Calendar() {
                             const isToday = d.key === todayKey
                             const isSelected = d.key === selectedDate
                             const dayAppts = apptIndex[d.key] || []
+                            const hasInvoice = dayAppts.some(a => a.type === 'invoice')
+                            const hasAppt = dayAppts.some(a => a.type !== 'invoice')
                             let className = 'cal-day'
                             if (d.otherMonth) className += ' other-month'
                             if (isToday) className += ' today'
@@ -185,9 +236,8 @@ export default function Calendar() {
                                     <span className="cal-day-num">{d.day}</span>
                                     {dayAppts.length > 0 && (
                                         <div className="cal-day-dots">
-                                            {dayAppts.slice(0, 3).map((_, i) => (
-                                                <div key={i} className="cal-dot"></div>
-                                            ))}
+                                            {hasAppt && <div className="cal-dot"></div>}
+                                            {hasInvoice && <div className="cal-dot invoice"></div>}
                                         </div>
                                     )}
                                 </div>
@@ -206,25 +256,57 @@ export default function Calendar() {
                         {selectedAppts.length > 0 ? (
                             <div className="appointment-list">
                                 {selectedAppts.map((appt) => (
-                                    <div key={appt.id} className="appointment-item">
-                                        <div className="appointment-time">{appt.time}</div>
-                                        <div className="appointment-title">{appt.title}</div>
-                                        <div className="appointment-client">
-                                            <User style={{ width: 12, height: 12, display: 'inline', marginRight: 4, verticalAlign: -1 }} />
-                                            {appt.client}
-                                        </div>
-                                        {appt.notes && (
-                                            <div className="appointment-client" style={{ marginTop: 4 }}>
-                                                <StickyNote style={{ width: 12, height: 12, display: 'inline', marginRight: 4, verticalAlign: -1 }} />
-                                                {appt.notes}
-                                            </div>
+                                    <div
+                                        key={appt.id}
+                                        className={`appointment-item${appt.type === 'invoice' ? ' invoice-event' : ''}`}
+                                    >
+                                        {appt.type === 'invoice' ? (
+                                            <>
+                                                <div className="appointment-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    <FileText style={{ width: 14, height: 14, color: 'var(--accent-blue)' }} />
+                                                    {appt.invoiceNumber} — {appt.client}
+                                                </div>
+                                                <div className="appointment-client" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                    <Euro style={{ width: 12, height: 12 }} />
+                                                    {formatEUR(appt.total)}
+                                                    <span style={{
+                                                        marginLeft: 8,
+                                                        padding: '2px 8px',
+                                                        borderRadius: 6,
+                                                        fontSize: 10,
+                                                        fontWeight: 600,
+                                                        background: appt.status === 'paid' ? 'rgba(0,212,170,0.15)' : appt.status === 'overdue' ? 'rgba(244,63,94,0.15)' : 'rgba(100,116,139,0.15)',
+                                                        color: appt.status === 'paid' ? 'var(--accent-green)' : appt.status === 'overdue' ? '#f43f5e' : 'var(--text-muted)',
+                                                    }}>
+                                                        {appt.status === 'paid' ? 'Maksettu' :
+                                                            appt.status === 'sent' ? 'Lähetetty' :
+                                                                appt.status === 'overdue' ? 'Erääntynyt' :
+                                                                    appt.status === 'cancelled' ? 'Peruutettu' : 'Luonnos'}
+                                                    </span>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="appointment-time">{appt.time}</div>
+                                                <div className="appointment-title">{appt.title}</div>
+                                                <div className="appointment-client">
+                                                    <User style={{ width: 12, height: 12, display: 'inline', marginRight: 4, verticalAlign: -1 }} />
+                                                    {appt.client}
+                                                </div>
+                                                {appt.notes && (
+                                                    <div className="appointment-client" style={{ marginTop: 4 }}>
+                                                        <StickyNote style={{ width: 12, height: 12, display: 'inline', marginRight: 4, verticalAlign: -1 }} />
+                                                        {appt.notes}
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
                                     </div>
                                 ))}
                             </div>
                         ) : (
                             <div className="appointment-empty">
-                                No appointments for this day
+                                Ei tapahtumia tälle päivälle
                             </div>
                         )}
                         <button
@@ -233,7 +315,7 @@ export default function Calendar() {
                             onClick={() => setShowModal(true)}
                         >
                             <Plus />
-                            Add Appointment
+                            Lisää tapaaminen
                         </button>
                     </div>
                 </div>
@@ -244,17 +326,17 @@ export default function Calendar() {
                 <div className="modal-overlay" onClick={() => setShowModal(false)}>
                     <div className="modal" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">New Appointment</h3>
+                            <h3 className="modal-title">Uusi tapaaminen</h3>
                             <button className="modal-close" onClick={() => setShowModal(false)}>
                                 <X />
                             </button>
                         </div>
                         <form className="modal-form" onSubmit={handleAddAppointment}>
                             <div className="form-group">
-                                <label>Title</label>
+                                <label>Otsikko</label>
                                 <input
                                     type="text"
-                                    placeholder="Meeting with client..."
+                                    placeholder="Tapaaminen asiakkaan kanssa..."
                                     value={newAppt.title}
                                     onChange={(e) => setNewAppt({ ...newAppt, title: e.target.value })}
                                     required
@@ -262,7 +344,7 @@ export default function Calendar() {
                             </div>
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>Time</label>
+                                    <label>Aika</label>
                                     <input
                                         type="time"
                                         value={newAppt.time}
@@ -271,29 +353,29 @@ export default function Calendar() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label>Client</label>
+                                    <label>Asiakas</label>
                                     <input
                                         type="text"
-                                        placeholder="Client name"
+                                        placeholder="Asiakkaan nimi"
                                         value={newAppt.client}
                                         onChange={(e) => setNewAppt({ ...newAppt, client: e.target.value })}
                                     />
                                 </div>
                             </div>
                             <div className="form-group">
-                                <label>Notes</label>
+                                <label>Muistiinpanot</label>
                                 <textarea
-                                    placeholder="Additional notes..."
+                                    placeholder="Lisätietoja..."
                                     value={newAppt.notes}
                                     onChange={(e) => setNewAppt({ ...newAppt, notes: e.target.value })}
                                 ></textarea>
                             </div>
                             <div className="modal-actions">
                                 <button type="button" className="btn btn-ghost" onClick={() => setShowModal(false)}>
-                                    Cancel
+                                    Peruuta
                                 </button>
                                 <button type="submit" className="btn btn-primary">
-                                    Save Appointment
+                                    Tallenna tapaaminen
                                 </button>
                             </div>
                         </form>

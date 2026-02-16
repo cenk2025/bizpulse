@@ -873,6 +873,10 @@ body {
   background: var(--accent-purple);
 }
 
+.cal-dot.invoice {
+  background: var(--accent-blue);
+}
+
 /* Calendar sidebar */
 .cal-sidebar {
   display: flex;
@@ -928,6 +932,11 @@ body {
 
 .appointment-item:nth-child(4) {
   border-left-color: var(--accent-amber);
+}
+
+.appointment-item.invoice-event {
+  border-left-color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.05);
 }
 
 .appointment-item:hover {

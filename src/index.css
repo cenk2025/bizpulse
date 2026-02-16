@@ -2406,6 +2406,204 @@ body {
   gap: 16px;
 }
 
+/* Form section label */
+.form-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--accent-primary);
+  margin: 16px 0 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Scan invoice button */
+.scan-invoice-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.08));
+  border: 1px dashed rgba(59, 130, 246, 0.4);
+  border-radius: 12px;
+  color: var(--text-heading);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+  margin-bottom: 8px;
+}
+
+.scan-invoice-btn:hover {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(139, 92, 246, 0.14));
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+.scan-invoice-btn svg {
+  color: var(--accent-blue);
+  flex-shrink: 0;
+}
+
+/* Invoice create summary */
+.inv-create-summary {
+  padding: 12px 0;
+  border-top: 1px solid var(--border-color);
+  margin-top: 4px;
+}
+
+.inv-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.inv-summary-total {
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-color);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+/* Reference number column */
+.inv-ref {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* Barcode Scanner Styles */
+.scanner-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.scanner-modal {
+  background: var(--bg-card);
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  width: 100%;
+  max-width: 440px;
+  overflow: hidden;
+}
+
+.scanner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.scanner-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-heading);
+}
+
+.scanner-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  transition: all var(--transition-fast);
+}
+
+.scanner-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-heading);
+}
+
+.scanner-body {
+  padding: 20px;
+}
+
+.scanner-viewfinder {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.scanner-viewfinder video {
+  border-radius: 12px;
+}
+
+#barcode-reader {
+  width: 100%;
+}
+
+#barcode-reader video {
+  border-radius: 12px !important;
+}
+
+#barcode-reader__scan_region {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+#barcode-reader__dashboard {
+  display: none !important;
+}
+
+.scanner-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.scanner-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--accent-rose);
+}
+
+.scanner-error p {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Hide button text on small screens */
+.hide-mobile-text {
+  display: inline;
+}
+
+@media (max-width: 480px) {
+  .hide-mobile-text {
+    display: none;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1200px) {
   .inv-stats-row {
     grid-template-columns: repeat(2, 1fr);

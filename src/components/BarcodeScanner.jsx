@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
+import Quagga from '@ericblade/quagga2'
 import { Camera, X, ScanLine, AlertCircle, Upload, Keyboard } from 'lucide-react'
 
 /**
@@ -77,16 +77,49 @@ export function formatIBAN(iban) {
     return clean.replace(/(.{4})/g, '$1 ').trim()
 }
 
-const BARCODE_FORMATS = [
-    Html5QrcodeSupportedFormats.CODE_128,
-    Html5QrcodeSupportedFormats.CODE_39,
-    Html5QrcodeSupportedFormats.ITF,
-    Html5QrcodeSupportedFormats.EAN_13,
-    Html5QrcodeSupportedFormats.CODABAR,
-]
+/**
+ * Scan barcode from an image file using Quagga2
+ */
+function scanImageWithQuagga(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+            Quagga.decodeSingle({
+                src: reader.result,
+                numOfWorkers: 0,
+                locate: true,
+                inputStream: {
+                    size: 1920,
+                },
+                decoder: {
+                    readers: [
+                        'code_128_reader',
+                        'ean_reader',
+                        'code_39_reader',
+                        'i2of5_reader',
+                        'codabar_reader',
+                    ],
+                    multiple: false,
+                },
+                locator: {
+                    patchSize: 'medium',
+                    halfSample: true,
+                },
+            }, (result) => {
+                if (result && result.codeResult) {
+                    resolve(result.codeResult.code)
+                } else {
+                    reject(new Error('not_found'))
+                }
+            })
+        }
+        reader.onerror = () => reject(new Error('read_error'))
+        reader.readAsDataURL(file)
+    })
+}
 
 export default function BarcodeScanner({ onScanResult, onClose }) {
-    const html5QrRef = useRef(null)
+    const liveStreamRef = useRef(null)
     const fileInputRef = useRef(null)
     const [error, setError] = useState(null)
     const [scanning, setScanning] = useState(false)
@@ -99,68 +132,82 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
         if (parsed) {
             onScanResult(parsed)
         } else {
-            onScanResult({ raw: decodedText, error: 'Ei kelvollinen suomalainen viivakoodi' })
+            onScanResult({ raw: decodedText, error: 'Ei kelvollinen suomalainen viivakoodi (' + decodedText.length + ' merkkiä)' })
         }
     }, [onScanResult])
 
-    // Camera scanning
+    // Live camera scanning with Quagga
     useEffect(() => {
         if (mode !== 'camera') return
         let mounted = true
 
-        async function startScanner() {
-            try {
-                // Small delay to let DOM render
-                await new Promise(r => setTimeout(r, 300))
+        // Small delay to let DOM render
+        const timer = setTimeout(() => {
+            if (!mounted) return
 
-                const el = document.getElementById('barcode-reader')
-                if (!el) return
-
-                const html5Qr = new Html5Qrcode('barcode-reader', {
-                    formatsToSupport: BARCODE_FORMATS,
-                    useBarCodeDetectorIfSupported: true,
-                })
-                html5QrRef.current = html5Qr
-
-                await html5Qr.start(
-                    { facingMode: 'environment' },
-                    {
-                        fps: 20,
-                        aspectRatio: 1.7778,
+            Quagga.init({
+                inputStream: {
+                    type: 'LiveStream',
+                    target: document.getElementById('barcode-live'),
+                    constraints: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
                     },
-                    (decodedText) => {
-                        html5Qr.stop().catch(() => { })
-                        handleResult(decodedText)
-                    },
-                    () => { }
-                )
-
-                if (mounted) setScanning(true)
-            } catch (err) {
-                if (mounted) {
-                    console.error('Scanner error:', err)
-                    setError(
-                        err.toString().includes('NotAllowedError')
-                            ? 'Kameran käyttö estetty. Anna lupa selaimen asetuksista.'
-                            : err.toString().includes('NotFoundError')
-                                ? 'Kameraa ei löydy.'
-                                : 'Kameraa ei voitu käynnistää: ' + err.message
-                    )
+                },
+                decoder: {
+                    readers: [
+                        'code_128_reader',
+                        'ean_reader',
+                        'code_39_reader',
+                        'i2of5_reader',
+                    ],
+                    multiple: false,
+                },
+                locator: {
+                    patchSize: 'large',
+                    halfSample: true,
+                },
+                frequency: 15,
+                locate: true,
+            }, (err) => {
+                if (err) {
+                    console.error('Quagga init error:', err)
+                    if (mounted) {
+                        setError(
+                            err.toString().includes('NotAllowedError')
+                                ? 'Kameran käyttö estetty. Anna lupa selaimen asetuksista.'
+                                : err.toString().includes('NotFoundError')
+                                    ? 'Kameraa ei löydy.'
+                                    : 'Kameraa ei voitu käynnistää: ' + err.message
+                        )
+                    }
+                    return
                 }
-            }
-        }
 
-        startScanner()
+                if (mounted) {
+                    Quagga.start()
+                    setScanning(true)
+                }
+            })
+
+            Quagga.onDetected((result) => {
+                if (result && result.codeResult && result.codeResult.code) {
+                    Quagga.stop()
+                    handleResult(result.codeResult.code)
+                }
+            })
+        }, 400)
 
         return () => {
             mounted = false
-            if (html5QrRef.current) {
-                html5QrRef.current.stop().catch(() => { })
-            }
+            clearTimeout(timer)
+            try { Quagga.stop() } catch { /* not running */ }
+            try { Quagga.offDetected() } catch { /* not registered */ }
         }
     }, [mode, handleResult])
 
-    // Process selected image file
+    // Process selected image file with Quagga
     async function handleFileUpload(e) {
         const file = e.target.files?.[0]
         if (!file) return
@@ -168,18 +215,16 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
         setError(null)
 
         try {
-            const html5Qr = new Html5Qrcode('file-scanner', {
-                formatsToSupport: BARCODE_FORMATS,
-                useBarCodeDetectorIfSupported: true,
-            })
-
-            const result = await html5Qr.scanFile(file, /* showImage */ false)
-            handleResult(result)
+            const code = await scanImageWithQuagga(file)
+            handleResult(code)
         } catch (err) {
-            console.error('File scan error:', err)
+            console.error('Image scan error:', err)
             setError('Viivakoodia ei löydy kuvasta. Kokeile ottaa selkeämpi kuva tai syötä koodi manuaalisesti.')
             setProcessing(false)
         }
+
+        // Reset file input so the same file can be selected again
+        e.target.value = ''
     }
 
     // Manual code entry
@@ -194,9 +239,8 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
     }
 
     function handleClose() {
-        if (html5QrRef.current) {
-            html5QrRef.current.stop().catch(() => { })
-        }
+        try { Quagga.stop() } catch { /* not running */ }
+        try { Quagga.offDetected() } catch { /* not registered */ }
         onClose()
     }
 
@@ -214,8 +258,7 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                 </div>
 
                 <div className="scanner-body">
-                    {/* Hidden elements for scanning */}
-                    <div id="file-scanner" style={{ display: 'none' }} />
+                    {/* Hidden file input */}
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -226,7 +269,7 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                     />
 
                     {/* Mode chooser */}
-                    {mode === 'choose' && (
+                    {mode === 'choose' && !processing && (
                         <div className="scanner-options">
                             <button
                                 className="scanner-option-btn"
@@ -269,6 +312,17 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                         </div>
                     )}
 
+                    {/* Processing indicator */}
+                    {processing && (
+                        <div style={{
+                            textAlign: 'center', padding: 40,
+                            color: 'var(--text-muted)', fontSize: 14,
+                        }}>
+                            <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
+                            Käsitellään kuvaa...
+                        </div>
+                    )}
+
                     {/* Camera mode */}
                     {mode === 'camera' && (
                         <>
@@ -283,8 +337,10 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                             ) : (
                                 <>
                                     <div
-                                        id="barcode-reader"
+                                        id="barcode-live"
+                                        ref={liveStreamRef}
                                         className="scanner-viewfinder"
+                                        style={{ minHeight: 200 }}
                                     />
                                     {scanning && (
                                         <div className="scanner-hint">
@@ -296,7 +352,7 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                                         className="btn btn-ghost"
                                         style={{ width: '100%', marginTop: 12 }}
                                         onClick={() => {
-                                            if (html5QrRef.current) html5QrRef.current.stop().catch(() => { })
+                                            try { Quagga.stop() } catch { /* */ }
                                             setMode('choose')
                                             setScanning(false)
                                         }}
@@ -356,18 +412,8 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                         </form>
                     )}
 
-                    {/* Processing indicator */}
-                    {processing && (
-                        <div style={{
-                            textAlign: 'center', padding: 20,
-                            color: 'var(--text-muted)', fontSize: 14,
-                        }}>
-                            Käsitellään kuvaa...
-                        </div>
-                    )}
-
                     {/* Error for file upload */}
-                    {mode === 'choose' && error && (
+                    {mode === 'choose' && error && !processing && (
                         <div className="scanner-error" style={{ marginTop: 12 }}>
                             <AlertCircle style={{ width: 24, height: 24 }} />
                             <p>{error}</p>

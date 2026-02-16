@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import Sidebar from './components/Sidebar'
 import TopBar from './components/TopBar'
@@ -14,6 +14,13 @@ import HelpPage from './pages/Help'
 export default function App() {
     const [session, setSession] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [sidebarOpen, setSidebarOpen] = useState(false)
+    const location = useLocation()
+
+    // Close sidebar on route change (mobile)
+    useEffect(() => {
+        setSidebarOpen(false)
+    }, [location.pathname])
 
     useEffect(() => {
         // Get current session
@@ -55,10 +62,16 @@ export default function App() {
 
     // Logged in → show app
     return (
-        <div className="app-layout">
-            <Sidebar session={session} />
+        <div className={`app-layout ${sidebarOpen ? 'sidebar-open' : ''}`}>
+            {sidebarOpen && (
+                <div
+                    className="sidebar-overlay"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
+            <Sidebar session={session} onClose={() => setSidebarOpen(false)} />
             <div className="main-wrapper">
-                <TopBar />
+                <TopBar onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
                 <main className="main-content">
                     <Routes>
                         <Route path="/" element={<Dashboard />} />
@@ -70,25 +83,6 @@ export default function App() {
                     </Routes>
                 </main>
             </div>
-        </div>
-    )
-}
-
-function PlaceholderPage({ title, desc }) {
-    return (
-        <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '50vh',
-            textAlign: 'center',
-            opacity: 0.6,
-        }}>
-            <h2 style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-heading)', marginBottom: 8 }}>
-                {title}
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: 15 }}>{desc}</p>
         </div>
     )
 }

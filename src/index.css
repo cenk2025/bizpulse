@@ -2746,10 +2746,73 @@ body {
   }
 }
 
+/* Hamburger menu button - hidden on desktop */
+.topbar-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-heading);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: background var(--transition-fast);
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.topbar-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.topbar-menu-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Sidebar overlay - hidden by default */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 99;
+}
+
 @media (max-width: 768px) {
+  .topbar-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .topbar-left {
+    flex-direction: row;
+    align-items: center;
+    gap: 0;
+  }
+
+  .topbar-subtitle {
+    display: none;
+  }
+
+  .topbar-date {
+    display: none;
+  }
+
   .sidebar {
     transform: translateX(-100%);
-    transition: transform var(--transition-normal);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+  }
+
+  .sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .sidebar-open .sidebar-overlay {
+    display: block;
   }
 
   .main-wrapper {
@@ -2758,6 +2821,7 @@ body {
 
   .topbar {
     left: 0;
+    padding: 0 16px;
   }
 
   .main-content {
@@ -2775,5 +2839,20 @@ body {
   .transaction-date,
   .transaction-status {
     display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar-title {
+    font-size: 18px;
+  }
+
+  .main-content {
+    padding: 16px 12px;
+  }
+
+  .btn {
+    padding: 8px 14px;
+    font-size: 12px;
   }
 }

@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom'
-import { Bell, Search } from 'lucide-react'
+import { Bell, Search, Menu } from 'lucide-react'
 
 const pageTitles = {
     '/': { title: 'Dashboard', subtitle: 'Business overview & financial summary' },
@@ -10,7 +10,7 @@ const pageTitles = {
     '/help': { title: 'Help & Support', subtitle: 'Documentation & assistance' },
 }
 
-export default function TopBar() {
+export default function TopBar({ onMenuToggle }) {
     const location = useLocation()
     const page = pageTitles[location.pathname] || pageTitles['/']
 
@@ -25,6 +25,13 @@ export default function TopBar() {
     return (
         <header className="topbar">
             <div className="topbar-left">
+                <button
+                    className="topbar-menu-btn"
+                    onClick={onMenuToggle}
+                    aria-label="Toggle menu"
+                >
+                    <Menu />
+                </button>
                 <h2 className="topbar-title">{page.title}</h2>
                 <span className="topbar-subtitle">{page.subtitle}</span>
             </div>

@@ -88,7 +88,16 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
 
         async function startScanner() {
             try {
-                const html5Qr = new Html5Qrcode('barcode-reader')
+                const html5Qr = new Html5Qrcode('barcode-reader', {
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.ITF,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.CODABAR,
+                    ],
+                    useBarCodeDetectorIfSupported: true,
+                })
                 html5QrRef.current = html5Qr
 
                 const cameras = await Html5Qrcode.getCameras()
@@ -111,15 +120,7 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                     cameraId,
                     {
                         fps: 15,
-                        qrbox: { width: 350, height: 150 },
                         aspectRatio: 1.7778,
-                        formatsToSupport: [
-                            Html5QrcodeSupportedFormats.CODE_128,
-                            Html5QrcodeSupportedFormats.CODE_39,
-                            Html5QrcodeSupportedFormats.ITF,
-                            Html5QrcodeSupportedFormats.EAN_13,
-                            Html5QrcodeSupportedFormats.CODABAR,
-                        ],
                     },
                     (decodedText) => {
                         // Stop scanner on success

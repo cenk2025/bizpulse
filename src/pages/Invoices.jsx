@@ -232,7 +232,7 @@ export default function InvoicesPage() {
             })
             const invoiceNumber = numData || `INV-${String(invoices.length + 1).padStart(3, '0')}`
 
-            // Find existing client
+            // Find or create client
             let clientId = null
             if (newInvoice.client) {
                 const { data: existingClient } = await supabase
@@ -242,7 +242,23 @@ export default function InvoicesPage() {
                     .ilike('name', newInvoice.client)
                     .limit(1)
                     .single()
-                if (existingClient) clientId = existingClient.id
+
+                if (existingClient) {
+                    clientId = existingClient.id
+                } else {
+                    // Auto-create new client from invoice data
+                    const { data: newClientData } = await supabase
+                        .from('clients')
+                        .insert({
+                            user_id: user.id,
+                            name: newInvoice.client,
+                            email: newInvoice.email || null,
+                            status: 'active',
+                        })
+                        .select('id')
+                        .single()
+                    if (newClientData) clientId = newClientData.id
+                }
             }
 
             const { data: invoiceData, error: invoiceError } = await supabase

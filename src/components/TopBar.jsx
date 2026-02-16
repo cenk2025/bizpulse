@@ -2,12 +2,12 @@ import { useLocation } from 'react-router-dom'
 import { Bell, Search, Menu } from 'lucide-react'
 
 const pageTitles = {
-    '/': { title: 'Dashboard', subtitle: 'Business overview & financial summary' },
-    '/calendar': { title: 'Calendar', subtitle: 'Appointments & schedule management' },
-    '/invoices': { title: 'Invoices', subtitle: 'Manage your billing' },
-    '/clients': { title: 'Clients', subtitle: 'Client relationship management' },
-    '/settings': { title: 'Settings', subtitle: 'Application preferences' },
-    '/help': { title: 'Help & Support', subtitle: 'Documentation & assistance' },
+    '/': { title: 'Hallintapaneeli', subtitle: 'Liiketoiminnan yleiskatsaus' },
+    '/calendar': { title: 'Kalenteri', subtitle: 'Ajanvaraukset ja aikataulut' },
+    '/invoices': { title: 'Laskut', subtitle: 'Laskutuksen hallinta' },
+    '/clients': { title: 'Asiakkaat', subtitle: 'Asiakashallinta' },
+    '/settings': { title: 'Asetukset', subtitle: 'Sovelluksen asetukset' },
+    '/help': { title: 'Ohjeet ja tuki', subtitle: 'Ohjedokumentaatio' },
 }
 
 export default function TopBar({ onMenuToggle }) {

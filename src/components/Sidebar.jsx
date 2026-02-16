@@ -32,59 +32,59 @@ export default function Sidebar({ session }) {
                     <div className="sidebar-brand-icon">B</div>
                     <div className="sidebar-brand-text">
                         <h1>BizPulse</h1>
-                        <span>Small Business ERP</span>
+                        <span>Pienyritysten ERP</span>
                     </div>
                 </div>
             </div>
 
             <nav className="sidebar-nav">
-                <div className="sidebar-section-label">Main</div>
+                <div className="sidebar-section-label">Päävalikko</div>
                 <NavLink
                     to="/"
                     end
                     className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
                 >
                     <LayoutDashboard />
-                    <span>Dashboard</span>
+                    <span>Hallintapaneeli</span>
                 </NavLink>
                 <NavLink
                     to="/calendar"
                     className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
                 >
                     <CalendarDays />
-                    <span>Calendar</span>
+                    <span>Kalenteri</span>
                 </NavLink>
 
-                <div className="sidebar-section-label" style={{ marginTop: 16 }}>Management</div>
+                <div className="sidebar-section-label" style={{ marginTop: 16 }}>Hallinta</div>
                 <NavLink
                     to="/invoices"
                     className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
                 >
                     <FileText />
-                    <span>Invoices</span>
+                    <span>Laskut</span>
                 </NavLink>
                 <NavLink
                     to="/clients"
                     className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
                 >
                     <Users />
-                    <span>Clients</span>
+                    <span>Asiakkaat</span>
                 </NavLink>
 
-                <div className="sidebar-section-label" style={{ marginTop: 16 }}>System</div>
+                <div className="sidebar-section-label" style={{ marginTop: 16 }}>Järjestelmä</div>
                 <NavLink
                     to="/settings"
                     className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
                 >
                     <Settings />
-                    <span>Settings</span>
+                    <span>Asetukset</span>
                 </NavLink>
                 <NavLink
                     to="/help"
                     className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
                 >
                     <HelpCircle />
-                    <span>Help & Support</span>
+                    <span>Ohjeet ja tuki</span>
                 </NavLink>
             </nav>
 
@@ -98,7 +98,7 @@ export default function Sidebar({ session }) {
                 </div>
                 <button className="sidebar-logout" onClick={handleLogout}>
                     <LogOut />
-                    <span>Sign Out</span>
+                    <span>Kirjaudu ulos</span>
                 </button>
             </div>
         </aside>

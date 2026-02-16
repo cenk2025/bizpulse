@@ -27,7 +27,7 @@ export default function Login() {
                     },
                 })
                 if (error) throw error
-                setSuccess('Account created! Check your email for verification, or try logging in.')
+                setSuccess('Tili luotu! Tarkista sähköpostisi vahvistusta varten tai kokeile kirjautua sisään.')
             } else {
                 const { error } = await supabase.auth.signInWithPassword({
                     email,
@@ -53,14 +53,14 @@ export default function Login() {
                 <div className="login-brand">
                     <div className="login-brand-icon">B</div>
                     <h1 className="login-brand-title">BizPulse</h1>
-                    <p className="login-brand-subtitle">Small Business ERP</p>
+                    <p className="login-brand-subtitle">Pienyritysten ERP</p>
                 </div>
 
                 {/* Card */}
                 <div className="login-card">
                     <div className="login-card-header">
-                        <h2>{isSignUp ? 'Create Account' : 'Welcome Back'}</h2>
-                        <p>{isSignUp ? 'Start managing your business' : 'Sign in to your dashboard'}</p>
+                        <h2>{isSignUp ? 'Luo tili' : 'Tervetuloa takaisin'}</h2>
+                        <p>{isSignUp ? 'Aloita yrityksesi hallinta' : 'Kirjaudu hallintapaneeliin'}</p>
                     </div>
 
                     <form className="login-form" onSubmit={handleSubmit}>
@@ -69,7 +69,7 @@ export default function Login() {
                                 <User className="login-input-icon" />
                                 <input
                                     type="text"
-                                    placeholder="Full Name"
+                                    placeholder="Koko nimi"
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
                                     required
@@ -81,7 +81,7 @@ export default function Login() {
                             <Mail className="login-input-icon" />
                             <input
                                 type="email"
-                                placeholder="Email address"
+                                placeholder="Sähköpostiosoite"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
@@ -92,7 +92,7 @@ export default function Login() {
                             <Lock className="login-input-icon" />
                             <input
                                 type="password"
-                                placeholder="Password"
+                                placeholder="Salasana"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
@@ -108,7 +108,7 @@ export default function Login() {
                                 <Loader2 className="spin" />
                             ) : (
                                 <>
-                                    {isSignUp ? 'Create Account' : 'Sign In'}
+                                    {isSignUp ? 'Luo tili' : 'Kirjaudu sisään'}
                                     <ArrowRight />
                                 </>
                             )}
@@ -116,7 +116,7 @@ export default function Login() {
                     </form>
 
                     <div className="login-switch">
-                        {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+                        {isSignUp ? 'Onko sinulla jo tili?' : 'Eikö sinulla ole tiliä?'}
                         <button
                             type="button"
                             onClick={() => {
@@ -125,7 +125,7 @@ export default function Login() {
                                 setSuccess('')
                             }}
                         >
-                            {isSignUp ? 'Sign In' : 'Sign Up'}
+                            {isSignUp ? 'Kirjaudu sisään' : 'Luo tili'}
                         </button>
                     </div>
                 </div>

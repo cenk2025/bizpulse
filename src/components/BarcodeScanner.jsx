@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Html5Qrcode } from 'html5-qrcode'
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { Camera, X, ScanLine, AlertCircle } from 'lucide-react'
 
 /**
@@ -93,7 +93,7 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
 
                 const cameras = await Html5Qrcode.getCameras()
                 if (!cameras || cameras.length === 0) {
-                    setError('Kamera bulunamadı. Tarayıcı kamera iznini kontrol edin.')
+                    setError('Kameraa ei löydy. Tarkista selaimen kameralupa.')
                     return
                 }
 
@@ -110,10 +110,16 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                 await html5Qr.start(
                     cameraId,
                     {
-                        fps: 10,
-                        qrbox: { width: 320, height: 120 },
-                        aspectRatio: 1.0,
-                        formatsToSupport: [0], // CODE_128
+                        fps: 15,
+                        qrbox: { width: 350, height: 150 },
+                        aspectRatio: 1.7778,
+                        formatsToSupport: [
+                            Html5QrcodeSupportedFormats.CODE_128,
+                            Html5QrcodeSupportedFormats.CODE_39,
+                            Html5QrcodeSupportedFormats.ITF,
+                            Html5QrcodeSupportedFormats.EAN_13,
+                            Html5QrcodeSupportedFormats.CODABAR,
+                        ],
                     },
                     (decodedText) => {
                         // Stop scanner on success
@@ -125,7 +131,7 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                             onScanResult(parsed)
                         } else {
                             // Not a valid Finnish barcode but still got a scan
-                            onScanResult({ raw: decodedText, error: 'Geçerli Finlandiya barkodu değil' })
+                            onScanResult({ raw: decodedText, error: 'Ei kelvollinen suomalainen viivakoodi' })
                         }
                     },
                     () => { } // Ignore scan failures (continuous scanning)
@@ -137,8 +143,8 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                     console.error('Scanner error:', err)
                     setError(
                         err.toString().includes('NotAllowedError')
-                            ? 'Kamera erişimi reddedildi. Tarayıcı ayarlarından izin verin.'
-                            : 'Kamera başlatılamadı: ' + err.message
+                            ? 'Kameran käyttö estetty. Anna lupa selaimen asetuksista.'
+                            : 'Kameraa ei voitu käynnistää: ' + err.message
                     )
                 }
             }
@@ -167,7 +173,7 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                 <div className="scanner-header">
                     <div className="scanner-title">
                         <Camera style={{ width: 20, height: 20 }} />
-                        <span>Barkod Tara</span>
+                        <span>Skannaa viivakoodi</span>
                     </div>
                     <button className="scanner-close" onClick={handleClose}>
                         <X style={{ width: 20, height: 20 }} />
@@ -190,7 +196,7 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                             {scanning && (
                                 <div className="scanner-hint">
                                     <ScanLine style={{ width: 16, height: 16 }} />
-                                    Faturanın altındaki barkodu kameraya gösterin
+                                    Näytä laskun viivakoodi kameralle
                                 </div>
                             )}
                         </>

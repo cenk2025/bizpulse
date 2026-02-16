@@ -2538,29 +2538,30 @@ body {
 }
 
 .scanner-viewfinder {
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.scanner-viewfinder video {
-  border-radius: 12px;
-}
-
-#barcode-reader {
   width: 100%;
-}
-
-#barcode-reader video {
-  border-radius: 12px !important;
-}
-
-#barcode-reader__scan_region {
   border-radius: 12px;
   overflow: hidden;
+  position: relative;
+  background: #000;
+  min-height: 220px;
 }
 
-#barcode-reader__dashboard {
-  display: none !important;
+.scanner-viewfinder video,
+.scanner-viewfinder canvas {
+  width: 100% !important;
+  height: auto !important;
+  display: block;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+/* Quagga drawingBuffer canvas - overlay detection lines */
+.scanner-viewfinder canvas.drawingBuffer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .scanner-hint {

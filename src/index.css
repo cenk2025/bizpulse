@@ -2249,6 +2249,70 @@ body {
   height: 18px;
 }
 
+/* Invoice action dropdown menu */
+.inv-action-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 100;
+  min-width: 200px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  animation: menuFadeIn 0.15s ease-out;
+}
+
+@keyframes menuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.inv-action-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.inv-action-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.inv-action-item.danger {
+  color: #f43f5e;
+}
+
+.inv-action-item.danger:hover {
+  background: rgba(244, 63, 94, 0.1);
+}
+
+.inv-action-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px 8px;
+}
+
 .inv-empty {
   text-align: center !important;
   color: var(--text-muted) !important;

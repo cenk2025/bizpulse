@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import BarcodeScanner, { formatIBAN } from '../components/BarcodeScanner'
 import {
@@ -19,6 +19,10 @@ import {
     Zap,
     Camera,
     ScanLine,
+    Eye,
+    Copy,
+    CheckSquare,
+    Ban,
 } from 'lucide-react'
 
 const VAT_OPTIONS = [
@@ -70,6 +74,25 @@ export default function InvoicesPage() {
     const [saving, setSaving] = useState(false)
     const [realtimeConnected, setRealtimeConnected] = useState(false)
     const [showScanner, setShowScanner] = useState(false)
+    const [activeMenu, setActiveMenu] = useState(null) // invoice dbId of open menu
+    const menuRef = useRef(null)
+
+    // Close menu on outside click
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (menuRef.current && !menuRef.current.contains(e.target)) {
+                setActiveMenu(null)
+            }
+        }
+        if (activeMenu) {
+            document.addEventListener('mousedown', handleClickOutside)
+            document.addEventListener('touchstart', handleClickOutside)
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside)
+            document.removeEventListener('touchstart', handleClickOutside)
+        }
+    }, [activeMenu])
 
     const emptyInvoice = {
         client: '', email: '', dueDate: '', currency: 'EUR',
@@ -282,6 +305,50 @@ export default function InvoicesPage() {
     async function handleStatusChange(inv, newStatus) {
         await supabase.from('invoices').update({ status: newStatus }).eq('id', inv.dbId)
         setViewInvoice(null)
+        setActiveMenu(null)
+        await loadInvoices()
+    }
+
+    async function handleDuplicate(inv) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        // Generate new invoice number
+        const nextNum = invoices.length > 0
+            ? Math.max(...invoices.map(i => parseInt(i.id?.replace('INV-', '') || '0'))) + 1
+            : 1
+        const invoiceNumber = `INV-${String(nextNum).padStart(3, '0')}`
+
+        const { data: newInv, error } = await supabase.from('invoices').insert({
+            user_id: user.id,
+            invoice_number: invoiceNumber,
+            client_name: inv.client,
+            client_email: inv.email,
+            date: new Date().toISOString().split('T')[0],
+            due_date: inv.dueDate,
+            status: 'draft',
+            currency: 'EUR',
+            total: inv.total,
+            source: 'manual',
+            iban: inv.iban,
+            bic: inv.bic,
+            reference_number: inv.referenceNumber,
+            vat_percent: inv.vatPercent,
+            payee_name: inv.payeeName,
+            payee_business_id: inv.payeeBusinessId,
+        }).select().single()
+
+        if (!error && newInv && inv.items) {
+            const itemsToInsert = inv.items.map(item => ({
+                invoice_id: newInv.id,
+                description: item.desc + ' (kopio)',
+                quantity: item.qty,
+                unit_price: item.rate,
+            }))
+            await supabase.from('invoice_items').insert(itemsToInsert)
+        }
+
+        setActiveMenu(null)
         await loadInvoices()
     }
 
@@ -431,10 +498,48 @@ export default function InvoicesPage() {
                                                 {sc.label}
                                             </span>
                                         </td>
-                                        <td>
-                                            <button className="inv-more-btn" onClick={(e) => e.stopPropagation()}>
+                                        <td style={{ position: 'relative' }}>
+                                            <button className="inv-more-btn" onClick={(e) => {
+                                                e.stopPropagation()
+                                                setActiveMenu(activeMenu === inv.dbId ? null : inv.dbId)
+                                            }}>
                                                 <MoreHorizontal />
                                             </button>
+                                            {activeMenu === inv.dbId && (
+                                                <div className="inv-action-menu" ref={menuRef}>
+                                                    <button className="inv-action-item" onClick={(e) => { e.stopPropagation(); setActiveMenu(null); setViewInvoice(inv) }}>
+                                                        <Eye style={{ width: 15, height: 15 }} />
+                                                        Näytä tiedot
+                                                    </button>
+                                                    <div className="inv-action-divider" />
+                                                    <button className="inv-action-item" onClick={(e) => { e.stopPropagation(); handleStatusChange(inv, 'paid') }}>
+                                                        <CheckCircle2 style={{ width: 15, height: 15, color: 'var(--accent-green)' }} />
+                                                        Merkitse maksetuksi
+                                                    </button>
+                                                    <button className="inv-action-item" onClick={(e) => { e.stopPropagation(); handleStatusChange(inv, 'sent') }}>
+                                                        <Send style={{ width: 15, height: 15, color: 'var(--accent-blue)' }} />
+                                                        Merkitse lähetetyksi
+                                                    </button>
+                                                    <button className="inv-action-item" onClick={(e) => { e.stopPropagation(); handleStatusChange(inv, 'draft') }}>
+                                                        <FileText style={{ width: 15, height: 15, color: 'var(--text-muted)' }} />
+                                                        Palauta luonnokseksi
+                                                    </button>
+                                                    <button className="inv-action-item" onClick={(e) => { e.stopPropagation(); handleStatusChange(inv, 'cancelled') }}>
+                                                        <Ban style={{ width: 15, height: 15, color: 'var(--text-muted)' }} />
+                                                        Peruuta lasku
+                                                    </button>
+                                                    <div className="inv-action-divider" />
+                                                    <button className="inv-action-item" onClick={(e) => { e.stopPropagation(); handleDuplicate(inv) }}>
+                                                        <Copy style={{ width: 15, height: 15 }} />
+                                                        Kopioi lasku
+                                                    </button>
+                                                    <div className="inv-action-divider" />
+                                                    <button className="inv-action-item danger" onClick={(e) => handleDelete(inv, e)}>
+                                                        <Trash2 style={{ width: 15, height: 15 }} />
+                                                        Poista lasku
+                                                    </button>
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                 )

@@ -191,10 +191,31 @@ export default function BarcodeScanner({ onScanResult, onClose }) {
                 }
             })
 
+            // Track consecutive reads for accuracy
+            let lastCode = ''
+            let matchCount = 0
+
             Quagga.onDetected((result) => {
                 if (result && result.codeResult && result.codeResult.code) {
-                    Quagga.stop()
-                    handleResult(result.codeResult.code)
+                    const code = result.codeResult.code.replace(/\s/g, '')
+
+                    // Only accept valid Finnish virtuaaliviivakoodi (54 chars, starts with 4 or 5)
+                    if (code.length !== 54 || (code[0] !== '4' && code[0] !== '5')) {
+                        return // Keep scanning — ignore partial reads
+                    }
+
+                    // Require 2 consecutive matching reads for reliability
+                    if (code === lastCode) {
+                        matchCount++
+                    } else {
+                        lastCode = code
+                        matchCount = 1
+                    }
+
+                    if (matchCount >= 2) {
+                        Quagga.stop()
+                        handleResult(code)
+                    }
                 }
             })
         }, 400)

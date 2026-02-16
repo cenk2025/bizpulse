@@ -1,5 +1,5 @@
 import {
-    DollarSign,
+    Euro,
     TrendingUp,
     TrendingDown,
     CreditCard,
@@ -22,7 +22,7 @@ import {
 import { monthlyData, kpiData, recentTransactions } from '../data/sampleData'
 
 function formatCurrency(num) {
-    return '$' + num.toLocaleString('en-US')
+    return num.toLocaleString('fi-FI', { style: 'currency', currency: 'EUR' })
 }
 
 function CustomTooltip({ active, payload, label }) {
@@ -53,7 +53,7 @@ export default function Dashboard() {
                 <div className="kpi-card revenue fade-in-up">
                     <div className="kpi-header">
                         <div className="kpi-icon-wrap teal">
-                            <DollarSign />
+                            <Euro />
                         </div>
                         <div className="kpi-trend up">
                             <ArrowUpRight />
@@ -61,7 +61,7 @@ export default function Dashboard() {
                         </div>
                     </div>
                     <div className="kpi-value">{formatCurrency(kpiData.totalRevenue)}</div>
-                    <div className="kpi-label">Total Revenue</div>
+                    <div className="kpi-label">Kokonaistulot</div>
                 </div>
 
                 <div className="kpi-card expenses fade-in-up">
@@ -75,7 +75,7 @@ export default function Dashboard() {
                         </div>
                     </div>
                     <div className="kpi-value">{formatCurrency(kpiData.totalExpenses)}</div>
-                    <div className="kpi-label">Total Expenses</div>
+                    <div className="kpi-label">Kokonaiskulut</div>
                 </div>
 
                 <div className="kpi-card profit fade-in-up">
@@ -89,7 +89,7 @@ export default function Dashboard() {
                         </div>
                     </div>
                     <div className="kpi-value">{formatCurrency(kpiData.totalProfit)}</div>
-                    <div className="kpi-label">Net Profit</div>
+                    <div className="kpi-label">Nettotulos</div>
                 </div>
 
                 <div className="kpi-card invoices fade-in-up">
@@ -103,7 +103,7 @@ export default function Dashboard() {
                         </div>
                     </div>
                     <div className="kpi-value">{kpiData.invoicesPaid}</div>
-                    <div className="kpi-label">Invoices Paid</div>
+                    <div className="kpi-label">Maksetut laskut</div>
                 </div>
             </div>
 
@@ -111,15 +111,15 @@ export default function Dashboard() {
             <div className="charts-row">
                 <div className="chart-card fade-in-up">
                     <div className="chart-card-header">
-                        <h3 className="chart-card-title">Revenue vs Expenses</h3>
+                        <h3 className="chart-card-title">Tulot vs. kulut</h3>
                         <div className="chart-legend">
                             <div className="chart-legend-item">
                                 <div className="chart-legend-dot" style={{ background: '#00d4aa' }}></div>
-                                Revenue
+                                Tulot
                             </div>
                             <div className="chart-legend-item">
                                 <div className="chart-legend-dot" style={{ background: '#f43f5e' }}></div>
-                                Expenses
+                                Kulut
                             </div>
                         </div>
                     </div>
@@ -146,13 +146,13 @@ export default function Dashboard() {
                                 axisLine={false}
                                 tickLine={false}
                                 tick={{ fill: '#64748b', fontSize: 12 }}
-                                tickFormatter={(v) => `$${v / 1000}k`}
+                                tickFormatter={(v) => `${v / 1000}k €`}
                             />
                             <Tooltip content={<CustomTooltip />} />
                             <Area
                                 type="monotone"
                                 dataKey="revenue"
-                                name="Revenue"
+                                name="Tulot"
                                 stroke="#00d4aa"
                                 strokeWidth={2.5}
                                 fill="url(#colorRevenue)"
@@ -160,7 +160,7 @@ export default function Dashboard() {
                             <Area
                                 type="monotone"
                                 dataKey="expenses"
-                                name="Expenses"
+                                name="Kulut"
                                 stroke="#f43f5e"
                                 strokeWidth={2.5}
                                 fill="url(#colorExpenses)"
@@ -171,7 +171,7 @@ export default function Dashboard() {
 
                 <div className="chart-card fade-in-up">
                     <div className="chart-card-header">
-                        <h3 className="chart-card-title">Quick Stats</h3>
+                        <h3 className="chart-card-title">Pikatilastot</h3>
                     </div>
                     <div className="quick-stats">
                         <div className="quick-stat-item">
@@ -180,7 +180,7 @@ export default function Dashboard() {
                             </div>
                             <div className="quick-stat-info">
                                 <div className="quick-stat-value">{kpiData.invoicesPaid}</div>
-                                <div className="quick-stat-label">Invoices Paid</div>
+                                <div className="quick-stat-label">Maksetut laskut</div>
                             </div>
                         </div>
                         <div className="quick-stat-item">
@@ -189,7 +189,7 @@ export default function Dashboard() {
                             </div>
                             <div className="quick-stat-info">
                                 <div className="quick-stat-value">{kpiData.invoicesOutstanding}</div>
-                                <div className="quick-stat-label">Outstanding Invoices</div>
+                                <div className="quick-stat-label">Avoimet laskut</div>
                             </div>
                         </div>
                         <div className="quick-stat-item">
@@ -198,7 +198,7 @@ export default function Dashboard() {
                             </div>
                             <div className="quick-stat-info">
                                 <div className="quick-stat-value">{kpiData.upcomingAppointments}</div>
-                                <div className="quick-stat-label">Upcoming Appointments</div>
+                                <div className="quick-stat-label">Tulevat tapaamiset</div>
                             </div>
                         </div>
                     </div>
@@ -209,14 +209,14 @@ export default function Dashboard() {
             <div className="charts-row">
                 <div className="transactions-card fade-in-up">
                     <div className="transactions-header">
-                        <h3 className="transactions-title">Recent Transactions</h3>
-                        <span className="transactions-badge">{recentTransactions.length} entries</span>
+                        <h3 className="transactions-title">Viimeisimmät tapahtumat</h3>
+                        <span className="transactions-badge">{recentTransactions.length} merkintää</span>
                     </div>
                     <div className="transaction-list">
                         {recentTransactions.map((tx) => (
                             <div key={tx.id} className="transaction-row">
                                 <span className="transaction-date">
-                                    {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                    {new Date(tx.date).toLocaleDateString('fi-FI', { day: 'numeric', month: 'short' })}
                                 </span>
                                 <span className="transaction-desc">{tx.description}</span>
                                 <span className={`transaction-status ${tx.status}`}>{tx.status}</span>
@@ -230,7 +230,7 @@ export default function Dashboard() {
 
                 <div className="chart-card fade-in-up">
                     <div className="chart-card-header">
-                        <h3 className="chart-card-title">Monthly Profit</h3>
+                        <h3 className="chart-card-title">Kuukausittainen tulos</h3>
                     </div>
                     <ResponsiveContainer width="100%" height={280}>
                         <BarChart data={monthlyData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -245,12 +245,12 @@ export default function Dashboard() {
                                 axisLine={false}
                                 tickLine={false}
                                 tick={{ fill: '#64748b', fontSize: 12 }}
-                                tickFormatter={(v) => `$${v / 1000}k`}
+                                tickFormatter={(v) => `${v / 1000}k €`}
                             />
                             <Tooltip content={<CustomTooltip />} />
                             <Bar
                                 dataKey="profit"
-                                name="Profit"
+                                name="Tulos"
                                 fill="url(#profitGradient)"
                                 radius={[6, 6, 0, 0]}
                                 barSize={28}

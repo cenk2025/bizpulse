@@ -2589,6 +2589,44 @@ body {
   line-height: 1.5;
 }
 
+/* Scanner option buttons */
+.scanner-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scanner-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  color: var(--text-heading);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transition-fast);
+}
+
+.scanner-option-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--accent-primary);
+}
+
+.scanner-option-btn svg {
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+/* Manual entry form */
+.scanner-manual {
+  display: flex;
+  flex-direction: column;
+}
+
 /* Hide button text on small screens */
 .hide-mobile-text {
   display: inline;

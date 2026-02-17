@@ -11,7 +11,7 @@ import {
     FileText,
     Euro,
 } from 'lucide-react'
-import { sampleAppointments } from '../data/sampleData'
+// import { sampleAppointments } from '../data/sampleData'
 
 const WEEKDAYS = ['Ma', 'Ti', 'Ke', 'To', 'Pe', 'La', 'Su']
 const MONTH_NAMES = [
@@ -45,7 +45,8 @@ export default function Calendar() {
     const [currentYear, setCurrentYear] = useState(today.getFullYear())
     const [currentMonth, setCurrentMonth] = useState(today.getMonth())
     const [selectedDate, setSelectedDate] = useState(formatDateKey(today.getFullYear(), today.getMonth(), today.getDate()))
-    const [appointments, setAppointments] = useState(sampleAppointments)
+    const [appointments, setAppointments] = useState([])
+    const [loading, setLoading] = useState(true)
     const [invoiceEvents, setInvoiceEvents] = useState([])
     const [showModal, setShowModal] = useState(false)
     const [newAppt, setNewAppt] = useState({ title: '', time: '', client: '', notes: '' })
@@ -81,9 +82,33 @@ export default function Calendar() {
         }
     }, [])
 
+    // Load appointments from Supabase
+    const loadAppointments = useCallback(async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const { data, error } = await supabase
+            .from('appointments')
+            .select('*')
+            .eq('user_id', user.id)
+
+        if (!error && data) {
+            setAppointments(data.map(appt => ({
+                id: appt.id,
+                date: appt.date,
+                time: appt.time.slice(0, 5), // HH:MM:SS -> HH:MM
+                title: appt.title,
+                client: appt.client_name || '',
+                notes: appt.notes || '',
+                type: 'appointment'
+            })))
+        }
+    }, [])
+
     useEffect(() => {
         loadInvoices()
-    }, [loadInvoices])
+        loadAppointments()
+    }, [loadInvoices, loadAppointments])
 
     // Combine sample appointments + invoice events
     const allEvents = useMemo(() => {
@@ -167,17 +192,43 @@ export default function Calendar() {
         setSelectedDate(todayKey)
     }
 
-    function handleAddAppointment(e) {
+    async function handleAddAppointment(e) {
         e.preventDefault()
         if (!newAppt.title || !newAppt.time) return
-        const appt = {
-            id: Date.now(),
-            date: selectedDate,
-            ...newAppt,
+
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        const { data, error } = await supabase
+            .from('appointments')
+            .insert({
+                user_id: user.id,
+                title: newAppt.title,
+                date: selectedDate,
+                time: newAppt.time,
+                client_name: newAppt.client,
+                notes: newAppt.notes,
+            })
+            .select()
+            .single()
+
+        if (!error && data) {
+            const appt = {
+                id: data.id,
+                date: data.date,
+                time: data.time.slice(0, 5),
+                title: data.title,
+                client: data.client_name || '',
+                notes: data.notes || '',
+                type: 'appointment'
+            }
+            setAppointments(prev => [...prev, appt])
+            setNewAppt({ title: '', time: '', client: '', notes: '' })
+            setShowModal(false)
+        } else {
+            alert('Tapaamisen tallennus epäonnistui.')
+            console.error(error)
         }
-        setAppointments([...appointments, appt])
-        setNewAppt({ title: '', time: '', client: '', notes: '' })
-        setShowModal(false)
     }
 
     const selectedAppts = apptIndex[selectedDate] || []

@@ -57,6 +57,10 @@ export default function ClientsPage() {
         name: '', email: '', phone: '', company: '', location: '', notes: '',
     })
 
+    // Edit mode states
+    const [isEditing, setIsEditing] = useState(false)
+    const [editFormData, setEditFormData] = useState({})
+
     const loadClients = useCallback(async () => {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
@@ -212,6 +216,52 @@ export default function ClientsPage() {
         await loadClients()
     }
 
+    // Initialize edit form when opening client details
+    useEffect(() => {
+        if (viewClient) {
+            setEditFormData({
+                name: viewClient.name || '',
+                company: viewClient.company || '',
+                email: viewClient.email || '',
+                phone: viewClient.phone || '',
+                location: viewClient.location || '',
+                notes: viewClient.notes || '',
+            })
+            setIsEditing(false)
+        }
+    }, [viewClient])
+
+    async function handleUpdate(e) {
+        e.preventDefault()
+        setSaving(true)
+        try {
+            const { error } = await supabase
+                .from('clients')
+                .update({
+                    name: editFormData.name,
+                    company: editFormData.company,
+                    email: editFormData.email,
+                    phone: editFormData.phone,
+                    location: editFormData.location,
+                    notes: editFormData.notes,
+                })
+                .eq('id', viewClient.id)
+
+            if (error) throw error
+
+            // Update local state and view
+            const updatedClient = { ...viewClient, ...editFormData }
+            setViewClient(updatedClient)
+            setClients(clients.map(c => c.id === viewClient.id ? { ...c, ...editFormData } : c))
+            setIsEditing(false)
+        } catch (err) {
+            console.error('Failed to update client:', err)
+            alert('Failed to update client.')
+        } finally {
+            setSaving(false)
+        }
+    }
+
     if (loading) {
         return (
             <div style={{
@@ -323,66 +373,151 @@ export default function ClientsPage() {
                 <div className="modal-overlay" onClick={() => setViewClient(null)}>
                     <div className="modal" style={{ width: 520 }} onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3 className="modal-title">Client Details</h3>
-                            <button className="modal-close" onClick={() => setViewClient(null)}><X /></button>
+                            <h3 className="modal-title">{isEditing ? 'Edit Client' : 'Client Details'}</h3>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                {!isEditing && (
+                                    <button
+                                        className="btn btn-ghost"
+                                        onClick={() => setIsEditing(true)}
+                                        title="Edit Client"
+                                    >
+                                        <Edit3 style={{ width: 18, height: 18 }} />
+                                    </button>
+                                )}
+                                <button className="modal-close" onClick={() => setViewClient(null)}><X /></button>
+                            </div>
                         </div>
-                        <div className="cl-detail">
-                            <div className="cl-detail-top">
-                                <div className="cl-avatar cl-avatar-lg" style={{ background: avatarColors[viewClient.id?.charCodeAt?.(0) % avatarColors.length || 0] }}>
-                                    {getInitials(viewClient.name)}
-                                </div>
-                                <div>
-                                    <h3 className="cl-detail-name">{viewClient.name}</h3>
-                                    <p className="cl-detail-company">{viewClient.company || '—'}</p>
-                                    <span className={`cl-status-dot ${viewClient.status}`}>{viewClient.status}</span>
-                                </div>
-                            </div>
-
-                            <div className="cl-detail-info">
-                                <div className="cl-detail-info-item">
-                                    <Mail style={{ width: 16, height: 16 }} />
-                                    <span>{viewClient.email || '—'}</span>
-                                </div>
-                                <div className="cl-detail-info-item">
-                                    <Phone style={{ width: 16, height: 16 }} />
-                                    <span>{viewClient.phone || '—'}</span>
-                                </div>
-                                <div className="cl-detail-info-item">
-                                    <MapPin style={{ width: 16, height: 16 }} />
-                                    <span>{viewClient.location || '—'}</span>
-                                </div>
-                            </div>
-
-                            <div className="cl-detail-stats">
-                                <div className="cl-detail-stat-box">
-                                    <DollarSign style={{ width: 18, height: 18, color: 'var(--accent-teal)' }} />
-                                    <div>
-                                        <div className="cl-detail-stat-value">{formatCurrency(viewClient.totalSpent, defaultCurrency)}</div>
-                                        <div className="cl-detail-stat-label">Total Revenue</div>
+                        {isEditing ? (
+                            <form className="modal-form" onSubmit={handleUpdate}>
+                                <div className="cl-detail-top" style={{ marginBottom: 20 }}>
+                                    <div className="cl-avatar cl-avatar-lg" style={{ background: avatarColors[viewClient.id?.charCodeAt?.(0) % avatarColors.length || 0] }}>
+                                        {getInitials(editFormData.name || viewClient.name)}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            value={editFormData.name}
+                                            onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                            placeholder="Client Name"
+                                            style={{ fontSize: '1.25rem', fontWeight: 600, padding: 8, marginBottom: 8, width: '100%' }}
+                                            required
+                                        />
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            value={editFormData.company}
+                                            onChange={(e) => setEditFormData({ ...editFormData, company: e.target.value })}
+                                            placeholder="Company Name"
+                                            style={{ width: '100%', padding: 8 }}
+                                        />
                                     </div>
                                 </div>
-                                <div className="cl-detail-stat-box">
-                                    <CalendarDays style={{ width: 18, height: 18, color: 'var(--accent-purple)' }} />
-                                    <div>
-                                        <div className="cl-detail-stat-value">{viewClient.lastActivity || '—'}</div>
-                                        <div className="cl-detail-stat-label">Last Activity</div>
+
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Email</label>
+                                        <input
+                                            type="email"
+                                            value={editFormData.email}
+                                            onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Phone</label>
+                                        <input
+                                            type="tel"
+                                            value={editFormData.phone}
+                                            onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                                        />
                                     </div>
                                 </div>
-                            </div>
-
-                            {viewClient.notes && (
-                                <div className="cl-detail-notes">
-                                    <div className="cl-detail-notes-label">Notes</div>
-                                    <p>{viewClient.notes}</p>
+                                <div className="form-group">
+                                    <label>Location</label>
+                                    <input
+                                        type="text"
+                                        value={editFormData.location}
+                                        onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
+                                    />
                                 </div>
-                            )}
-                        </div>
-                        <div className="modal-actions">
-                            <button className="btn btn-ghost" style={{ color: 'var(--accent-rose)' }} onClick={() => handleDelete(viewClient)}>
-                                <Trash2 style={{ width: 16, height: 16 }} /> Delete
-                            </button>
-                            <button className="btn btn-ghost" onClick={() => setViewClient(null)}>Close</button>
-                        </div>
+                                <div className="form-group">
+                                    <label>Notes</label>
+                                    <textarea
+                                        rows="3"
+                                        value={editFormData.notes}
+                                        onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                                    />
+                                </div>
+
+                                <div className="modal-actions">
+                                    <button type="button" className="btn btn-ghost" onClick={() => setIsEditing(false)}>Cancel</button>
+                                    <button type="submit" className="btn btn-primary" disabled={saving}>
+                                        {saving ? 'Saving...' : 'Save Changes'}
+                                    </button>
+                                </div>
+                            </form>
+                        ) : (
+                            <>
+                                <div className="cl-detail">
+                                    <div className="cl-detail-top">
+                                        <div className="cl-avatar cl-avatar-lg" style={{ background: avatarColors[viewClient.id?.charCodeAt?.(0) % avatarColors.length || 0] }}>
+                                            {getInitials(viewClient.name)}
+                                        </div>
+                                        <div>
+                                            <h3 className="cl-detail-name">{viewClient.name}</h3>
+                                            <p className="cl-detail-company">{viewClient.company || '—'}</p>
+                                            <span className={`cl-status-dot ${viewClient.status}`}>{viewClient.status}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="cl-detail-info">
+                                        <div className="cl-detail-info-item">
+                                            <Mail style={{ width: 16, height: 16 }} />
+                                            <span>{viewClient.email || '—'}</span>
+                                        </div>
+                                        <div className="cl-detail-info-item">
+                                            <Phone style={{ width: 16, height: 16 }} />
+                                            <span>{viewClient.phone || '—'}</span>
+                                        </div>
+                                        <div className="cl-detail-info-item">
+                                            <MapPin style={{ width: 16, height: 16 }} />
+                                            <span>{viewClient.location || '—'}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="cl-detail-stats">
+                                        <div className="cl-detail-stat-box">
+                                            <DollarSign style={{ width: 18, height: 18, color: 'var(--accent-teal)' }} />
+                                            <div>
+                                                <div className="cl-detail-stat-value">{formatCurrency(viewClient.totalSpent, defaultCurrency)}</div>
+                                                <div className="cl-detail-stat-label">Total Revenue</div>
+                                            </div>
+                                        </div>
+                                        <div className="cl-detail-stat-box">
+                                            <CalendarDays style={{ width: 18, height: 18, color: 'var(--accent-purple)' }} />
+                                            <div>
+                                                <div className="cl-detail-stat-value">{viewClient.lastActivity || '—'}</div>
+                                                <div className="cl-detail-stat-label">Last Activity</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {viewClient.notes && (
+                                        <div className="cl-detail-notes">
+                                            <div className="cl-detail-notes-label">Notes</div>
+                                            <p>{viewClient.notes}</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="modal-actions">
+                                    <button className="btn btn-ghost" style={{ color: 'var(--accent-rose)' }} onClick={() => handleDelete(viewClient)}>
+                                        <Trash2 style={{ width: 16, height: 16 }} /> Delete
+                                    </button>
+                                    <button className="btn btn-ghost" onClick={() => setViewClient(null)}>Close</button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}

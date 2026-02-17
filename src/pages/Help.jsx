@@ -17,21 +17,21 @@ import {
 } from 'lucide-react'
 
 const faqs = [
-    { q: 'How do I create a new invoice?', a: 'Go to the Invoices page from the sidebar, click "New Invoice", fill in the client details and line items, then click "Create Invoice". The invoice will appear in your list as a draft.' },
-    { q: 'Can I export my financial data?', a: 'Data export functionality is on our roadmap. Currently, you can view all transactions on the Dashboard and use your browser\'s print function for reports.' },
-    { q: 'How do I add a new appointment?', a: 'Navigate to the Calendar page, select a date, and click the "Add Appointment" button. Fill in the time, title, client name, and optional notes.' },
-    { q: 'How do I change my password?', a: 'Go to Settings → Security section. Enter your new password and confirm it, then click "Save Changes".' },
-    { q: 'Can I add team members?', a: 'Multi-user team support is planned for a future release. Currently, each account operates independently with its own data.' },
-    { q: 'Is my data secure?', a: 'Yes. BizPulse uses Supabase with Row-Level Security (RLS), meaning each user can only access their own data. All connections are encrypted via HTTPS.' },
+    { q: 'Kuinka luon uuden laskun?', a: 'Siirry sivupalkista Laskut-sivulle, klikkaa "Uusi lasku", täytä asiakkaan tiedot ja rivitiedot, ja klikkaa sitten "Luo lasku". Lasku ilmestyy luetteloon luonnoksena.' },
+    { q: 'Voinko viedä taloustietoni?', a: 'Tietojen vientitoiminto on tulossa pian. Tällä hetkellä voit tarkastella kaikkia tapahtumia Hallintapaneelista ja käyttää selaimesi tulostustoimintoa raportteihin.' },
+    { q: 'Kuinka lisään uuden tapaamisen?', a: 'Siirry Kalenteri-sivulle, valitse päivämäärä ja klikkaa "Lisää tapaaminen" -painiketta. Täytä aika, otsikko, asiakkaan nimi ja valinnaiset muistiinpanot.' },
+    { q: 'Kuinka vaihdan salasanani?', a: 'Mene Asetukset → Turvallisuus -osioon. Syötä uusi salasanasi ja vahvista se, klikkaa sitten "Tallenna muutokset".' },
+    { q: 'Voinko lisätä tiimin jäseniä?', a: 'Monen käyttäjän tiimituki on suunniteltu tulevaan julkaisuun. Tällä hetkellä jokainen tili toimii itsenäisesti omilla tiedoillaan.' },
+    { q: 'Ovatko tietoni turvassa?', a: 'Kyllä. BizPulse käyttää Supabasea rivitason suojauksella (RLS), mikä tarkoittaa, että jokainen käyttäjä pääsee käsiksi vain omiin tietoihinsa. Kaikki yhteydet on salattu HTTPS:n kautta.' },
 ]
 
 const guides = [
-    { icon: BarChart3, title: 'Dashboard Overview', desc: 'Track revenue, expenses, and profit at a glance', color: 'var(--accent-teal)', bg: 'var(--accent-teal-dim)' },
-    { icon: CalendarDays, title: 'Managing Appointments', desc: 'Schedule and organize your business calendar', color: 'var(--accent-blue)', bg: 'var(--accent-blue-dim)' },
-    { icon: FileText, title: 'Invoice Management', desc: 'Create, send, and track invoices', color: 'var(--accent-purple)', bg: 'var(--accent-purple-dim)' },
-    { icon: Users, title: 'Client CRM', desc: 'Manage your client relationships', color: 'var(--accent-amber)', bg: 'var(--accent-amber-dim)' },
-    { icon: Settings, title: 'Account Settings', desc: 'Configure your profile and preferences', color: 'var(--accent-green)', bg: 'var(--accent-green-dim)' },
-    { icon: Shield, title: 'Security & Privacy', desc: 'Understand how your data is protected', color: 'var(--accent-rose)', bg: 'var(--accent-rose-dim)' },
+    { icon: BarChart3, title: 'Yleiskatsaus', desc: 'Seuraa tuloja, kuluja ja voittoa yhdellä silmäyksellä', color: 'var(--accent-teal)', bg: 'var(--accent-teal-dim)' },
+    { icon: CalendarDays, title: 'Tapaamisten hallinta', desc: 'Aikatauluta ja järjestä yrityksesi kalenteri', color: 'var(--accent-blue)', bg: 'var(--accent-blue-dim)' },
+    { icon: FileText, title: 'Laskutuksen hallinta', desc: 'Luo, lähetä ja seuraa laskuja', color: 'var(--accent-purple)', bg: 'var(--accent-purple-dim)' },
+    { icon: Users, title: 'Asiakasrekisteri', desc: 'Hallitse asiakassuhteitasi', color: 'var(--accent-amber)', bg: 'var(--accent-amber-dim)' },
+    { icon: Settings, title: 'Tilin asetukset', desc: 'Määritä profiilisi ja asetuksesi', color: 'var(--accent-green)', bg: 'var(--accent-green-dim)' },
+    { icon: Shield, title: 'Turvallisuus & Yksityisyys', desc: 'Ymmärrä kuinka tietosi on suojattu', color: 'var(--accent-rose)', bg: 'var(--accent-rose-dim)' },
 ]
 
 export default function HelpPage() {
@@ -48,13 +48,13 @@ export default function HelpPage() {
             {/* Hero */}
             <div className="help-hero fade-in-up">
                 <LifeBuoy className="help-hero-icon" />
-                <h2>How can we help?</h2>
-                <p>Search our docs or browse the topics below</p>
+                <h2>Kuinka voimme auttaa?</h2>
+                <p>Hae ohjeista tai selaa aiheita alta</p>
                 <div className="help-search">
                     <Search className="help-search-icon" />
                     <input
                         type="text"
-                        placeholder="Search for help..."
+                        placeholder="Etsi apua..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -65,7 +65,7 @@ export default function HelpPage() {
             <div className="help-section fade-in-up">
                 <h3 className="help-section-title">
                     <BookOpen style={{ width: 20, height: 20 }} />
-                    Quick Guides
+                    Pikaopas
                 </h3>
                 <div className="help-guides-grid">
                     {guides.map((g, i) => {
@@ -90,7 +90,7 @@ export default function HelpPage() {
             <div className="help-section fade-in-up">
                 <h3 className="help-section-title">
                     <MessageCircle style={{ width: 20, height: 20 }} />
-                    Frequently Asked Questions
+                    Usein kysytyt kysymykset
                 </h3>
                 <div className="help-faq-list">
                     {filteredFaqs.map((faq, i) => (
@@ -105,7 +105,7 @@ export default function HelpPage() {
                         </div>
                     ))}
                     {filteredFaqs.length === 0 && (
-                        <p className="help-empty">No matching questions found. Try a different search.</p>
+                        <p className="help-empty">Ei hakutuloksia. Kokeile toista hakusanaa.</p>
                     )}
                 </div>
             </div>
@@ -114,11 +114,11 @@ export default function HelpPage() {
             <div className="help-contact fade-in-up">
                 <div className="help-contact-inner">
                     <Mail className="help-contact-icon" />
-                    <h3>Still need help?</h3>
-                    <p>Our support team typically responds within 24 hours</p>
-                    <a href="mailto:support@bizpulse.app" className="btn btn-primary">
+                    <h3>Tarvitsetko vielä apua?</h3>
+                    <p>Tukitiimimme vastaa yleensä 24 tunnin kuluessa</p>
+                    <a href="mailto:info@voon.fi" className="btn btn-primary">
                         <Mail style={{ width: 16, height: 16 }} />
-                        Contact Support
+                        Ota yhteyttä tukeen
                     </a>
                 </div>
             </div>

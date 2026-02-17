@@ -101,6 +101,12 @@ export default function Sidebar({ session }) {
                     <span>Kirjaudu ulos</span>
                 </button>
             </div>
+
+            <div style={{ padding: '0 20px 20px', fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                <a href="https://voon.fi" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none', opacity: 0.7 }}>
+                    VOON IQ -tuote
+                </a>
+            </div>
         </aside>
     )
 }

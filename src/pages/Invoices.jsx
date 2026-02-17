@@ -95,6 +95,7 @@ export default function InvoicesPage() {
     }, [activeMenu])
 
     const emptyInvoice = {
+        type: 'sales', // 'sales' or 'purchase'
         client: '', email: '', dueDate: '', currency: 'EUR',
         iban: '', bic: '', referenceNumber: '', vatPercent: 25.5,
         payeeName: '', payeeBusinessId: '',
@@ -140,7 +141,10 @@ export default function InvoicesPage() {
                     rate: parseFloat(it.rate),
                 })),
             }))
-            setInvoices(mapped)
+            setInvoices(mapped.map(inv => ({
+                ...inv,
+                type: inv.invoice_type || 'sales', // default to sales if null
+            })))
         }
         setLoading(false)
     }, [])
@@ -215,6 +219,7 @@ export default function InvoicesPage() {
             items: result.amount > 0
                 ? [{ desc: 'Skannattu lasku', qty: 1, rate: result.amount }]
                 : prev.items,
+            type: 'purchase', // Scanned invoices default to purchase (expense)
         }))
         setShowModal(true)
     }
@@ -282,6 +287,7 @@ export default function InvoicesPage() {
                     reference_number: newInvoice.referenceNumber.replace(/\s/g, ''),
                     payee_name: newInvoice.payeeName,
                     payee_business_id: newInvoice.payeeBusinessId,
+                    invoice_type: newInvoice.type,
                 })
                 .select()
                 .single()
@@ -352,6 +358,7 @@ export default function InvoicesPage() {
             vat_percent: inv.vatPercent,
             payee_name: inv.payeeName,
             payee_business_id: inv.payeeBusinessId,
+            invoice_type: inv.type,
         }).select().single()
 
         if (!error && newInv && inv.items) {
@@ -483,7 +490,10 @@ export default function InvoicesPage() {
                                 const SrcIcon = src.icon
                                 return (
                                     <tr key={inv.dbId || inv.id} onClick={() => setViewInvoice(inv)}>
-                                        <td className="inv-id">{inv.id}</td>
+                                        <td className="inv-id">
+                                            {inv.id}
+                                            <div className={`invoice-type-dot ${inv.type}`} title={inv.type === 'sales' ? 'Myynti' : 'Osto'} />
+                                        </td>
                                         <td>
                                             <div className="inv-client-cell">
                                                 <span className="inv-client-name">{inv.client}</span>
@@ -581,6 +591,9 @@ export default function InvoicesPage() {
                         <div className="modal-header">
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <h3 className="modal-title">{viewInvoice.id}</h3>
+                                <span className={`invoice-type-badge ${viewInvoice.type}`}>
+                                    {viewInvoice.type === 'sales' ? 'Myynti' : 'Osto'}
+                                </span>
                                 {viewInvoice.source !== 'manual' && (
                                     <span style={{
                                         display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -743,6 +756,26 @@ export default function InvoicesPage() {
                                     <div style={{ fontSize: 12, opacity: 0.7 }}>Täyttää IBAN, summa, viite ja eräpäivä automaattisesti</div>
                                 </div>
                             </button>
+
+                            {/* Type Selection */}
+                            <div className="form-row" style={{ marginBottom: 20 }}>
+                                <div className="type-toggle">
+                                    <button
+                                        type="button"
+                                        className={`type-toggle-btn ${newInvoice.type === 'sales' ? 'active sales' : ''}`}
+                                        onClick={() => setNewInvoice({ ...newInvoice, type: 'sales' })}
+                                    >
+                                        Myyntilasku (Tulot)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`type-toggle-btn ${newInvoice.type === 'purchase' ? 'active purchase' : ''}`}
+                                        onClick={() => setNewInvoice({ ...newInvoice, type: 'purchase' })}
+                                    >
+                                        Ostolasku (Kulut)
+                                    </button>
+                                </div>
+                            </div>
 
                             {/* Client info */}
                             <div className="form-section-label">Asiakas</div>

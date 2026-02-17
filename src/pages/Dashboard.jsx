@@ -19,7 +19,8 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from 'recharts'
-import { monthlyData, kpiData, recentTransactions } from '../data/sampleData'
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '../lib/supabase'
 
 function formatCurrency(num) {
     return num.toLocaleString('fi-FI', { style: 'currency', currency: 'EUR' })
@@ -46,6 +47,112 @@ function CustomTooltip({ active, payload, label }) {
 }
 
 export default function Dashboard() {
+    const [loading, setLoading] = useState(true)
+    const [kpiData, setKpiData] = useState({
+        totalRevenue: 0,
+        totalExpenses: 0,
+        totalProfit: 0,
+        revenueTrend: 0,
+        expenseTrend: 0,
+        profitTrend: 0,
+        invoicesPaid: 0,
+        invoicesOutstanding: 0,
+        upcomingAppointments: 0
+    })
+    const [monthlyData, setMonthlyData] = useState([])
+    const [recentTransactions, setRecentTransactions] = useState([])
+
+    const fetchData = useCallback(async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
+        // Fetch Invoices
+        const { data: invoices } = await supabase
+            .from('invoices')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+
+        if (invoices) {
+            // Process KPIs
+            const paidInvoices = invoices.filter(i => i.status === 'paid')
+            const revenue = paidInvoices
+                .filter(i => (i.invoice_type || 'sales') === 'sales')
+                .reduce((s, i) => s + parseFloat(i.amount), 0)
+
+            const expenses = paidInvoices
+                .filter(i => i.invoice_type === 'purchase')
+                .reduce((s, i) => s + parseFloat(i.amount), 0)
+
+            const profit = revenue - expenses
+
+            // Process Monthly Data
+            const currentYear = new Date().getFullYear()
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            const monthlyStats = months.map((m, i) => {
+                const monthInvoices = paidInvoices.filter(inv => {
+                    const d = new Date(inv.date || inv.created_at)
+                    return d.getMonth() === i && d.getFullYear() === currentYear
+                })
+
+                const monRev = monthInvoices
+                    .filter(inv => (inv.invoice_type || 'sales') === 'sales')
+                    .reduce((s, inv) => s + parseFloat(inv.amount), 0)
+
+                const monExp = monthInvoices
+                    .filter(inv => inv.invoice_type === 'purchase')
+                    .reduce((s, inv) => s + parseFloat(inv.amount), 0)
+
+                return {
+                    month: m,
+                    revenue: monRev,
+                    expenses: monExp,
+                    profit: monRev - monExp
+                }
+            })
+
+            // Process Recent Transactions
+            const recent = invoices.slice(0, 5).map(inv => ({
+                id: inv.id,
+                date: inv.date || inv.created_at,
+                description: inv.invoice_type === 'purchase'
+                    ? `Ostolasku: ${inv.payee_name || 'Tuntematon'}`
+                    : `Myyntilasku: ${inv.client_name}`,
+                status: inv.status,
+                amount: parseFloat(inv.amount),
+                type: (inv.invoice_type || 'sales') === 'sales' ? 'income' : 'expense'
+            }))
+
+            setKpiData(prev => ({
+                ...prev,
+                totalRevenue: revenue,
+                totalExpenses: expenses,
+                totalProfit: profit,
+                invoicesPaid: paidInvoices.length,
+                invoicesOutstanding: invoices.filter(i => i.status === 'pending' || i.status === 'sent').length
+            }))
+
+            setMonthlyData(monthlyStats)
+            setRecentTransactions(recent)
+        }
+        setLoading(false)
+    }, [])
+
+    useEffect(() => {
+        fetchData()
+
+        // Realtime
+        const channel = supabase
+            .channel('dashboard-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, fetchData)
+            .subscribe()
+
+        return () => supabase.removeChannel(channel)
+    }, [fetchData])
+
+    if (loading) {
+        return <div style={{ p: 20, color: 'var(--text-muted)' }}>Ladataan...</div>
+    }
     return (
         <div className="dashboard-grid">
             {/* KPI Cards */}

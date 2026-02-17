@@ -2,6 +2,78 @@
    BizPulse — Design System & Global Styles
    ======================================== */
 
+/* Invoice Types */
+.invoice-type-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-left: 6px;
+}
+
+.invoice-type-dot.sales {
+  background-color: var(--accent-green);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.invoice-type-dot.purchase {
+  background-color: var(--accent-rose);
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
+}
+
+.type-toggle {
+  display: flex;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 4px;
+  width: 100%;
+}
+
+.type-toggle-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.type-toggle-btn.active.sales {
+  background: var(--accent-green-dim);
+  color: var(--accent-green);
+  font-weight: 600;
+}
+
+.type-toggle-btn.active.purchase {
+  background: var(--accent-rose-dim);
+  color: var(--accent-rose);
+  font-weight: 600;
+}
+
+.invoice-type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.invoice-type-badge.sales {
+  background: var(--accent-green-dim);
+  color: var(--accent-green);
+}
+
+.invoice-type-badge.purchase {
+  background: var(--accent-rose-dim);
+  color: var(--accent-rose);
+}
+
+/* Root Variables */
 :root {
   /* Color palette */
   --bg-primary: #0b1120;

@@ -4,7 +4,12 @@
 -- ============================================
 
 -- 1. Create ENUM type for invoice types
-CREATE TYPE invoice_type_enum AS ENUM ('sales', 'purchase');
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'invoice_type_enum') THEN
+    CREATE TYPE invoice_type_enum AS ENUM ('sales', 'purchase');
+  END IF;
+END $$;
 
 -- 2. Add invoice_type column to invoices table
 ALTER TABLE public.invoices 

@@ -57,6 +57,15 @@ function formatEUR(num) {
     })
 }
 
+function round2(num) {
+    return Math.round(num * 100) / 100
+}
+
+/** Net (VAT-excluded) amount from a VAT-included gross amount */
+function netFromGross(gross, vatPercent) {
+    return round2(gross / (1 + vatPercent / 100))
+}
+
 /** Format date to Finnish: pp.kk.vvvv */
 function formatDateFI(dateStr) {
     if (!dateStr) return ''
@@ -101,6 +110,7 @@ export default function InvoicesPage() {
         payeeName: '', payeeBusinessId: '',
         items: [{ desc: '', qty: 1, rate: 0 }],
         source: 'manual',
+        grossTotal: null, // scanned barcode amount (VAT included); null = compute from items
     }
     const [newInvoice, setNewInvoice] = useState(emptyInvoice)
 
@@ -128,6 +138,8 @@ export default function InvoicesPage() {
                 vatPercent: parseFloat(inv.vat_percent || 25.5),
                 vatAmount: parseFloat(inv.vat_amount || 0),
                 status: inv.status,
+                type: inv.invoice_type || 'sales', // default to sales if null
+                clientId: inv.client_id,
                 currency: inv.currency || 'EUR',
                 source: inv.source || 'manual',
                 iban: inv.iban || '',
@@ -141,10 +153,7 @@ export default function InvoicesPage() {
                     rate: parseFloat(it.rate),
                 })),
             }))
-            setInvoices(mapped.map(inv => ({
-                ...inv,
-                type: inv.invoice_type || 'sales', // default to sales if null
-            })))
+            setInvoices(mapped)
         }
         setLoading(false)
     }, [])
@@ -165,10 +174,18 @@ export default function InvoicesPage() {
         return () => supabase.removeChannel(channel)
     }, [loadInvoices])
 
-    // Calculations
-    const subtotal = newInvoice.items.reduce((s, i) => s + (i.qty * i.rate), 0)
-    const vatAmount = subtotal * (newInvoice.vatPercent / 100)
-    const total = subtotal + vatAmount
+    // Calculations — a scanned barcode carries the gross amount (VAT included),
+    // so in that case the net is derived backwards and the total stays exact.
+    let subtotal, vatAmount, total
+    if (newInvoice.grossTotal != null) {
+        total = newInvoice.grossTotal
+        subtotal = netFromGross(total, newInvoice.vatPercent)
+        vatAmount = round2(total - subtotal)
+    } else {
+        subtotal = newInvoice.items.reduce((s, i) => s + (i.qty * i.rate), 0)
+        vatAmount = subtotal * (newInvoice.vatPercent / 100)
+        total = subtotal + vatAmount
+    }
 
     const filtered = invoices.filter((inv) => {
         const q = searchQuery.toLowerCase()
@@ -186,19 +203,57 @@ export default function InvoicesPage() {
         overdue: invoices.filter(i => i.status === 'overdue').reduce((s, i) => s + i.amount, 0),
     }
 
+    // Editing amounts by hand switches from scanned gross total back to item-based totals
     function addItem() {
-        setNewInvoice({ ...newInvoice, items: [...newInvoice.items, { desc: '', qty: 1, rate: 0 }] })
+        setNewInvoice({ ...newInvoice, grossTotal: null, items: [...newInvoice.items, { desc: '', qty: 1, rate: 0 }] })
     }
 
     function updateItem(index, field, value) {
         const items = [...newInvoice.items]
         items[index] = { ...items[index], [field]: value }
-        setNewInvoice({ ...newInvoice, items })
+        const grossTotal = field === 'desc' ? newInvoice.grossTotal : null
+        setNewInvoice({ ...newInvoice, items, grossTotal })
     }
 
     function removeItem(index) {
         if (newInvoice.items.length <= 1) return
-        setNewInvoice({ ...newInvoice, items: newInvoice.items.filter((_, i) => i !== index) })
+        setNewInvoice({ ...newInvoice, grossTotal: null, items: newInvoice.items.filter((_, i) => i !== index) })
+    }
+
+    function changeVat(vatPercent) {
+        if (newInvoice.grossTotal != null) {
+            // Keep the scanned gross total; re-derive the net line price
+            const net = netFromGross(newInvoice.grossTotal, vatPercent)
+            setNewInvoice({ ...newInvoice, vatPercent, items: [{ ...newInvoice.items[0], qty: 1, rate: net }] })
+        } else {
+            setNewInvoice({ ...newInvoice, vatPercent })
+        }
+    }
+
+    /** Next invoice number from the DB; falls back to local max + 1 if the RPC is unavailable */
+    async function nextInvoiceNumber() {
+        const { data, error } = await supabase.rpc('next_invoice_number')
+        if (!error && data) return data
+        const maxNum = invoices.reduce((m, i) => {
+            const n = parseInt((i.id || '').replace(/\D/g, ''), 10)
+            return Number.isFinite(n) && n > m ? n : m
+        }, 0)
+        return `INV-${String(maxNum + 1).padStart(3, '0')}`
+    }
+
+    /** Insert an invoice, retrying with a fresh number if another one took it (unique violation) */
+    async function insertInvoiceWithNumber(row) {
+        for (let attempt = 0; attempt < 3; attempt++) {
+            const invoiceNumber = await nextInvoiceNumber()
+            const { data, error } = await supabase
+                .from('invoices')
+                .insert({ ...row, invoice_number: invoiceNumber })
+                .select()
+                .single()
+            if (!error) return data
+            if (error.code !== '23505') throw error
+        }
+        throw new Error('Laskunumeron varaus epäonnistui')
     }
 
     // Barcode scan result handler
@@ -208,16 +263,17 @@ export default function InvoicesPage() {
             alert(result.error)
             return
         }
-        // Auto-fill form with scanned data
+        // Auto-fill form with scanned data. The barcode amount is the payable
+        // total (VAT included), so the line item gets the derived net price.
         setNewInvoice(prev => ({
             ...prev,
             iban: formatIBAN(result.iban) || prev.iban,
             referenceNumber: result.referenceNumber || prev.referenceNumber,
             dueDate: result.dueDate || prev.dueDate,
             source: 'scan',
-            // Set amount as single line item
+            grossTotal: result.amount > 0 ? result.amount : prev.grossTotal,
             items: result.amount > 0
-                ? [{ desc: 'Skannattu lasku', qty: 1, rate: result.amount }]
+                ? [{ desc: 'Skannattu lasku', qty: 1, rate: netFromGross(result.amount, prev.vatPercent) }]
                 : prev.items,
             type: 'purchase', // Scanned invoices default to purchase (expense)
         }))
@@ -231,11 +287,6 @@ export default function InvoicesPage() {
         try {
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) return
-
-            const { data: numData } = await supabase.rpc('generate_invoice_number', {
-                p_user_id: user.id,
-            })
-            const invoiceNumber = numData || `INV-${String(invoices.length + 1).padStart(3, '0')}`
 
             // Find or create client
             let clientId = null
@@ -266,11 +317,8 @@ export default function InvoicesPage() {
                 }
             }
 
-            const { data: invoiceData, error: invoiceError } = await supabase
-                .from('invoices')
-                .insert({
+            const invoiceData = await insertInvoiceWithNumber({
                     user_id: user.id,
-                    invoice_number: invoiceNumber,
                     client_id: clientId,
                     client_name: newInvoice.client,
                     client_email: newInvoice.email,
@@ -288,11 +336,7 @@ export default function InvoicesPage() {
                     payee_name: newInvoice.payeeName,
                     payee_business_id: newInvoice.payeeBusinessId,
                     invoice_type: newInvoice.type,
-                })
-                .select()
-                .single()
-
-            if (invoiceError) throw invoiceError
+            })
 
             const itemsToInsert = newInvoice.items.map((item, idx) => ({
                 invoice_id: invoiceData.id,
@@ -303,7 +347,12 @@ export default function InvoicesPage() {
                 sort_order: idx,
             }))
 
-            await supabase.from('invoice_items').insert(itemsToInsert)
+            const { error: itemsError } = await supabase.from('invoice_items').insert(itemsToInsert)
+            if (itemsError) {
+                // Don't leave an invoice without its line items
+                await supabase.from('invoices').delete().eq('id', invoiceData.id)
+                throw itemsError
+            }
 
             setNewInvoice(emptyInvoice)
             setShowModal(false)
@@ -335,40 +384,50 @@ export default function InvoicesPage() {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return
 
-        // Generate new invoice number
-        const nextNum = invoices.length > 0
-            ? Math.max(...invoices.map(i => parseInt(i.id?.replace('INV-', '') || '0'))) + 1
-            : 1
-        const invoiceNumber = `INV-${String(nextNum).padStart(3, '0')}`
+        try {
+            const now = new Date()
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
-        const { data: newInv, error } = await supabase.from('invoices').insert({
-            user_id: user.id,
-            invoice_number: invoiceNumber,
-            client_name: inv.client,
-            client_email: inv.email,
-            date: new Date().toISOString().split('T')[0],
-            due_date: inv.dueDate,
-            status: 'draft',
-            currency: 'EUR',
-            total: inv.total,
-            source: 'manual',
-            iban: inv.iban,
-            bic: inv.bic,
-            reference_number: inv.referenceNumber,
-            vat_percent: inv.vatPercent,
-            payee_name: inv.payeeName,
-            payee_business_id: inv.payeeBusinessId,
-            invoice_type: inv.type,
-        }).select().single()
+            const newInv = await insertInvoiceWithNumber({
+                user_id: user.id,
+                client_id: inv.clientId || null,
+                client_name: inv.client,
+                client_email: inv.email,
+                date: today,
+                due_date: inv.dueDate,
+                status: 'draft',
+                currency: 'EUR',
+                amount: inv.amount,
+                subtotal: inv.subtotal,
+                vat_amount: inv.vatAmount,
+                vat_percent: inv.vatPercent,
+                source: 'manual',
+                iban: inv.iban,
+                bic: inv.bic,
+                reference_number: inv.referenceNumber,
+                payee_name: inv.payeeName,
+                payee_business_id: inv.payeeBusinessId,
+                invoice_type: inv.type,
+            })
 
-        if (!error && newInv && inv.items) {
-            const itemsToInsert = inv.items.map(item => ({
-                invoice_id: newInv.id,
-                description: item.desc + ' (kopio)',
-                quantity: item.qty,
-                unit_price: item.rate,
-            }))
-            await supabase.from('invoice_items').insert(itemsToInsert)
+            if (inv.items?.length) {
+                const itemsToInsert = inv.items.map((item, idx) => ({
+                    invoice_id: newInv.id,
+                    description: item.desc + ' (kopio)',
+                    qty: item.qty,
+                    rate: item.rate,
+                    vat_percent: inv.vatPercent,
+                    sort_order: idx,
+                }))
+                const { error: itemsError } = await supabase.from('invoice_items').insert(itemsToInsert)
+                if (itemsError) {
+                    await supabase.from('invoices').delete().eq('id', newInv.id)
+                    throw itemsError
+                }
+            }
+        } catch (err) {
+            console.error('Failed to duplicate invoice:', err)
+            alert('Laskun kopiointi epäonnistui.')
         }
 
         setActiveMenu(null)
@@ -922,7 +981,7 @@ export default function InvoicesPage() {
                                     <label>ALV %</label>
                                     <select
                                         value={newInvoice.vatPercent}
-                                        onChange={(e) => setNewInvoice({ ...newInvoice, vatPercent: parseFloat(e.target.value) })}
+                                        onChange={(e) => changeVat(parseFloat(e.target.value))}
                                     >
                                         {VAT_OPTIONS.map((v) => (
                                             <option key={v.value} value={v.value}>{v.label}</option>

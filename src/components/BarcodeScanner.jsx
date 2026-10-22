@@ -14,7 +14,11 @@ import { Camera, X, ScanLine, AlertCircle, Upload, Keyboard } from 'lucide-react
  * Pos 24-25:  Cents (2 digits)
  * Pos 26-28:  Reserved/padding (000)
  * Pos 29-48:  Reference number (20 digits, zero-padded, right-aligned)
- * Pos 49-54:  Due date (YYMMDD)
+ * Pos 49-54:  Due date (YYMMDD, 000000 = no due date)
+ *
+ * Format (Version 5) differs only in the reference part:
+ * Pos 26-27:  RF check digits
+ * Pos 28-48:  RF reference body (21 digits, zero-padded, right-aligned)
  */
 export function parseFinnishBarcode(code) {
     if (!code || code.length < 54) return null
@@ -37,22 +41,32 @@ export function parseFinnishBarcode(code) {
         const amount = eurPart + centPart / 100
 
         // Reference number
-        const refRaw = raw.substring(28, 48)
-        const referenceNumber = refRaw.replace(/^0+/, '') // trim leading zeros
-
-        // Due date
-        const dateStr = raw.substring(48, 54)
-        const year = 2000 + parseInt(dateStr.substring(0, 2), 10)
-        const month = parseInt(dateStr.substring(2, 4), 10)
-        const day = parseInt(dateStr.substring(4, 6), 10)
-        const dueDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-
-        // Format reference number with spaces (Finnish style: groups of 5 from right)
         let formattedRef = ''
-        const refStr = referenceNumber
-        for (let i = refStr.length; i > 0; i -= 5) {
-            const start = Math.max(0, i - 5)
-            formattedRef = refStr.substring(start, i) + (formattedRef ? ' ' : '') + formattedRef
+        if (version === '5') {
+            // RF reference: "RF" + check digits + body, shown in groups of 4 from the left
+            const body = raw.substring(27, 48).replace(/^0+/, '')
+            const rf = `RF${raw.substring(25, 27)}${body}`
+            formattedRef = rf.match(/.{1,4}/g).join(' ')
+        } else {
+            // Domestic reference: groups of 5 from the right
+            const refStr = raw.substring(28, 48).replace(/^0+/, '') // trim leading zeros
+            for (let i = refStr.length; i > 0; i -= 5) {
+                const start = Math.max(0, i - 5)
+                formattedRef = refStr.substring(start, i) + (formattedRef ? ' ' : '') + formattedRef
+            }
+        }
+
+        // Due date (000000 = not specified)
+        const dateStr = raw.substring(48, 54)
+        let dueDate = null
+        if (dateStr !== '000000') {
+            const year = 2000 + parseInt(dateStr.substring(0, 2), 10)
+            const month = parseInt(dateStr.substring(2, 4), 10)
+            const day = parseInt(dateStr.substring(4, 6), 10)
+            const d = new Date(year, month - 1, day)
+            if (d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day) {
+                dueDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+            }
         }
 
         return {

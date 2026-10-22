@@ -362,7 +362,7 @@ export default function ClientsPage() {
                     ))}
                     {filtered.length === 0 && (
                         <div className="cl-empty">
-                            {clients.length === 0 ? 'No clients yet. Add one manually or via n8n!' : 'No clients found'}
+                            {clients.length === 0 ? 'No clients yet. Add one to get started!' : 'No clients found'}
                         </div>
                     )}
                 </div>

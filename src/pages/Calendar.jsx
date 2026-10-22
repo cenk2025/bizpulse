@@ -72,10 +72,10 @@ export default function Calendar() {
                     time: '',
                     title: `📄 ${inv.invoice_number} — ${inv.client_name || 'Tuntematon'}`,
                     client: inv.client_name || '',
-                    notes: `Summa: ${formatEUR(inv.total)} | Tila: ${inv.status || 'luonnos'}`,
+                    notes: `Summa: ${formatEUR(parseFloat(inv.amount))} | Tila: ${inv.status || 'luonnos'}`,
                     type: 'invoice',
                     status: inv.status,
-                    total: inv.total,
+                    total: parseFloat(inv.amount),
                     invoiceNumber: inv.invoice_number,
                 }))
             setInvoiceEvents(events)

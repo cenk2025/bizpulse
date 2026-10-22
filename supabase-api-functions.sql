@@ -98,7 +98,7 @@ BEGIN
     'status', p_status
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ============================================
 -- 2. API: LIST INVOICES
@@ -159,7 +159,7 @@ BEGIN
 
   RETURN v_result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ============================================
 -- 3. API: UPDATE INVOICE STATUS
@@ -210,7 +210,7 @@ BEGIN
     'status', p_status
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ============================================
 -- 4. API: LIST CLIENTS
@@ -261,7 +261,7 @@ BEGIN
 
   RETURN v_result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ============================================
 -- 5. API: CREATE CLIENT
@@ -310,7 +310,7 @@ BEGIN
     'name', p_name
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ============================================
 -- 6. API: GENERAL WEBHOOK HANDLER
@@ -345,7 +345,7 @@ BEGIN
     'message', 'Webhook received and logged'
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ============================================
 -- 7. API: GENERATE API KEY
@@ -386,7 +386,7 @@ BEGIN
     'warning', 'Save this key now — it will not be shown again!'
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ============================================
 -- 8. API: REVOKE API KEY
@@ -408,7 +408,7 @@ BEGIN
 
   RETURN jsonb_build_object('success', true, 'message', 'API key revoked');
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ============================================
 -- 9. API: DAILY SUMMARY (for reports)
@@ -459,7 +459,7 @@ BEGIN
 
   RETURN v_result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ============================================
 -- 10. AUTO MARK OVERDUE
@@ -500,7 +500,7 @@ BEGIN
     'message', v_count || ' invoice(s) marked as overdue'
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ============================================
 -- ENABLE REALTIME for live updates in UI

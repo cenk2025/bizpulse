@@ -176,7 +176,7 @@ BEGIN
   SET last_used_at = now()
   WHERE key_hash = encode(digest(api_key, 'sha256'), 'hex');
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ============================================
 -- AUTO-GENERATE INVOICE NUMBER
@@ -186,6 +186,9 @@ RETURNS TEXT AS $$
 DECLARE
   next_num INTEGER;
 BEGIN
+  -- Serialize per user so concurrent calls in one transaction can't get the same number
+  PERFORM pg_advisory_xact_lock(hashtextextended(p_user_id::text, 0));
+
   SELECT COALESCE(MAX(
     CAST(NULLIF(regexp_replace(invoice_number, '[^0-9]', '', 'g'), '') AS INTEGER)
   ), 0) + 1
@@ -195,7 +198,7 @@ BEGIN
 
   RETURN 'INV-' || LPAD(next_num::TEXT, 3, '0');
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- ============================================
 -- UPDATE UPDATED_AT TRIGGER

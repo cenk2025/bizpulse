@@ -23,11 +23,24 @@ export default function App() {
     }, [location.pathname])
 
     useEffect(() => {
-        // Get current session
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        // Get current session. If Supabase is unreachable (e.g. project paused),
+        // fall back to the login page instead of showing "Loading..." forever.
+        let done = false
+        const finish = (session) => {
+            if (done) return
+            done = true
             setSession(session)
             setLoading(false)
-        })
+        }
+        const timeout = setTimeout(() => finish(null), 8000)
+
+        supabase.auth.getSession()
+            .then(({ data: { session } }) => finish(session))
+            .catch((err) => {
+                console.error('Failed to get session:', err)
+                finish(null)
+            })
+            .finally(() => clearTimeout(timeout))
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(

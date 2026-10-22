@@ -31,12 +31,13 @@ CREATE TABLE IF NOT EXISTS public.transactions (
 CREATE TABLE IF NOT EXISTS public.appointments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  date DATE NOT NULL,
-  time TEXT NOT NULL,
   title TEXT NOT NULL,
-  client TEXT,
+  client_name TEXT,
+  date DATE NOT NULL,
+  time TIME NOT NULL,
   notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- ============================================
@@ -109,7 +110,7 @@ BEGIN
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
 
 -- Drop trigger if exists, then create
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;

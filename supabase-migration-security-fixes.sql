@@ -91,7 +91,13 @@ END $$;
 -- 3. INTERNAL FUNCTIONS: not callable via the public API
 --    (the api_* functions still use them — they run as the owner)
 -- ============================================
-REVOKE EXECUTE ON FUNCTION public.verify_api_key(TEXT) FROM PUBLIC, anon, authenticated;
+DO $$
+BEGIN
+  -- verify_api_key is gone once supabase-migration-remove-n8n.sql has run
+  IF to_regprocedure('public.verify_api_key(text)') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.verify_api_key(TEXT) FROM PUBLIC, anon, authenticated;
+  END IF;
+END $$;
 REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
 
 -- ============================================
